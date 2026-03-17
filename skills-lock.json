@@ -1,0 +1,15 @@
+{
+  "version": 1,
+  "skills": {
+    "somnia-blockchain": {
+      "source": "emrestay/somnia-devrel",
+      "sourceType": "github",
+      "computedHash": "7ce9680f0af4f09f5f9d6e6a771a2f43ade08097cc4ffec48f346749456da6a7"
+    },
+    "somnia-reactivity": {
+      "source": "emrestay/somnia-devrel",
+      "sourceType": "github",
+      "computedHash": "d34d1ce22622279f94e6567c815768137a133f56c8c045dd382f0162a5989f91"
+    }
+  }
+}
