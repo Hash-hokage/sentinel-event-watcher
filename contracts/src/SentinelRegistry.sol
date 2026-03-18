@@ -16,6 +16,8 @@ contract SentinelRegistry {
         address target;      // E.g., a whale address or a pair contract
         uint256 threshold;   // E.g., transfer amount or price point
         bool isActive;
+        address actionTarget; // Optional automated action
+        bytes actionData;     // Optional call data for the action
     }
 
     // Keep track of total sentinels created
@@ -38,15 +40,19 @@ contract SentinelRegistry {
     event SentinelToggled(uint256 indexed id, bool active);
 
     /**
-     * @notice Register a new monitoring Sentinel.
+     * @notice Register a new monitoring Sentinel with optional action.
      * @param sType The category of the sentinel (Whale, Price, etc.)
      * @param target The address to monitor.
      * @param threshold The value triggering the alert.
+     * @param actionTarget The contract to call when triggered (0x0 for none).
+     * @param actionData The call data for the action.
      */
     function registerSentinel(
         SentinelType sType,
         address target,
-        uint256 threshold
+        uint256 threshold,
+        address actionTarget,
+        bytes calldata actionData
     ) external returns (uint256 id) {
         id = nextSentinelId++;
         
@@ -55,7 +61,9 @@ contract SentinelRegistry {
             sType: sType,
             target: target,
             threshold: threshold,
-            isActive: true
+            isActive: true,
+            actionTarget: actionTarget,
+            actionData: actionData
         });
 
         userSentinelIds[msg.sender].push(id);

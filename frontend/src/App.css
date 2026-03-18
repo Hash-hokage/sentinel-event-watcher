@@ -220,8 +220,92 @@ body {
   align-items: center;
 }
 
-.log-entry.reactive {
-  border-left: 4px solid var(--accent-secondary);
+.session-pill {
+  background: rgba(245, 158, 11, 0.1);
+  border: 1px solid #f59e0b;
+  padding: 0.4rem 0.8rem;
+  border-radius: 999px;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.75rem;
+  color: #f59e0b;
+  font-weight: bold;
+}
+
+.session-manager {
+  background: rgba(15, 23, 42, 0.8);
+  padding: 1rem;
+  border: 1px solid #1e293b;
+  border-radius: 4px;
+  margin-bottom: 1.5rem;
+}
+
+.input-group-row {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.session-btn {
+  background: #334155;
+  border: 1px solid #475569;
+  color: white;
+  padding: 0 0.75rem;
+  border-radius: 4px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-family: var(--font-main);
+  font-size: 0.7rem;
+}
+
+.session-addr {
+  font-size: 0.6rem;
+  color: var(--text-dim);
+  margin-top: 0.5rem;
+  margin-bottom: 0;
+  word-break: break-all;
+}
+
+.action-divider {
+  font-size: 0.6rem;
+  color: var(--accent-secondary);
+  text-align: center;
+  margin: 1rem 0 0.5rem 0;
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.action-divider::before, .action-divider::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: #334155;
+  margin: 0 0.5rem;
+}
+
+.s-details {
+  display: flex;
+  flex-direction: column;
+}
+
+.s-action-badge {
+  font-size: 0.55rem;
+  color: #10b981;
+  font-weight: bold;
+  letter-spacing: 0.05em;
+}
+
+.log-entry.auto_reactive_action {
+  border-left-color: #f59e0b;
+  background: rgba(245, 158, 11, 0.05);
+}
+
+.log-entry.session_tx_confirmed {
+  border-left-color: #10b981;
+  background: rgba(16, 185, 129, 0.05);
 }
 
 .control-panel {
