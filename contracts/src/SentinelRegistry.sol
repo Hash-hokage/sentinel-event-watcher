@@ -7,7 +7,7 @@ pragma solidity ^0.8.19;
  * @dev Fixed: Added validation for action targets to prevent malformed automated actions.
  */
 contract SentinelRegistry {
-    enum SentinelType { WALLET_WATCH, PRICE_ALERT, SYSTEM_HEALTH }
+    enum SentinelType { WALLET_WATCH, PRICE_ALERT, SYSTEM_HEALTH, BRIDGE_WATCH }
 
     struct SentinelConfig {
         address owner;
@@ -22,6 +22,7 @@ contract SentinelRegistry {
     uint256 public nextSentinelId;
     mapping(uint256 => SentinelConfig) public sentinels;
     mapping(address => uint256[]) private userSentinelIds;
+    mapping(address => bool) public isTargetRegistered;
 
     event SentinelCreated(
         uint256 indexed id,
@@ -67,6 +68,7 @@ contract SentinelRegistry {
         });
 
         userSentinelIds[msg.sender].push(id);
+        isTargetRegistered[target] = true;
 
         emit SentinelCreated(id, msg.sender, sType, target, threshold);
     }
