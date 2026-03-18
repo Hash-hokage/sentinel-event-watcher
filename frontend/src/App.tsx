@@ -1,12 +1,9 @@
-import { useState } from 'react';
-import { createPublicClient, createWalletClient, custom, http, parseAbiItem } from 'viem';
+import { useState, useEffect, useMemo } from 'react';
+import { createPublicClient, createWalletClient, custom, http, parseAbiItem, Log } from 'viem';
 import { localhost } from 'viem/chains';
 import './App.css';
 
-const SENTINEL_ABI = [
-  "event AlertTriggered(address indexed sender, string indexed alertType, string message, uint256 timestamp)",
-  "function triggerAlert(string alertType, string message) external"
-] as const;
+const ALERT_EVENT_ABI = parseAbiItem("event AlertTriggered(address indexed sender, string indexed alertType, string message, uint256 timestamp)");
 
 function App() {
   const [contractAddress, setContractAddress] = useState('');
@@ -15,11 +12,11 @@ function App() {
   const [events, setEvents] = useState<any[]>([]);
   const [isWatching, setIsWatching] = useState(false);
 
-  // Initialize client
-  const publicClient = createPublicClient({
+  // 1. Memoize the client so it isn't recreated on every single React render
+  const publicClient = useMemo(() => createPublicClient({
     chain: localhost,
     transport: window.ethereum ? custom(window.ethereum) : http()
-  });
+  }), []);
 
   const connectWallet = async () => {
     if (window.ethereum) {
@@ -35,23 +32,42 @@ function App() {
     }
   };
 
-  const startWatching = () => {
-    if (!contractAddress || !contractAddress.startsWith('0x')) {
-      alert("Please enter a valid contract address starting with 0x");
-      return;
-    }
-    setIsWatching(true);
-    setEvents([]); // clear previous
-    
-    // In a real app you should store the unwatch function and clean it up on unmount
-    publicClient.watchEvent({
-      address: contractAddress as `0x${string}`,
-      event: parseAbiItem("event AlertTriggered(address indexed sender, string indexed alertType, string message, uint256 timestamp)"),
-      onLogs: (logs) => {
-        setEvents(prev => [...logs, ...prev]);
+  const toggleWatching = () => {
+    if (!isWatching) {
+      if (!contractAddress || !contractAddress.startsWith('0x')) {
+        alert("Please enter a valid contract address starting with 0x");
+        return;
       }
-    });
+      setEvents([]); // Clear previous events when starting fresh
+      setIsWatching(true);
+    } else {
+      setIsWatching(false); // This will trigger the useEffect cleanup
+    }
   };
+
+  // 2. True Reactivity: Manage the subscription lifecycle with useEffect
+  useEffect(() => {
+    let unwatch: (() => void) | undefined;
+
+    // Only subscribe when we are explicitly watching and have an address
+    if (isWatching && contractAddress) {
+      unwatch = publicClient.watchEvent({
+        address: contractAddress as `0x${string}`,
+        event: ALERT_EVENT_ABI,
+        onLogs: (logs) => {
+          // Reactively update the state array based on the previous state
+          setEvents(prev => [...logs, ...prev]);
+        }
+      });
+    }
+
+    // 3. Cleanup: When dependencies change or component unmounts, unsubscribe
+    return () => {
+      if (unwatch) {
+        unwatch();
+      }
+    };
+  }, [isWatching, contractAddress, publicClient]);
 
   const triggerAlert = async () => {
     if (!account || !contractAddress) return;
@@ -106,11 +122,12 @@ function App() {
               onChange={(e) => setContractAddress(e.target.value)}
               disabled={isWatching}
             />
-            {!isWatching ? (
-               <button onClick={startWatching} className="primary-btn">Start Watching</button>
-            ) : (
-               <span className="status-badge watching">🟢 Watching Active</span>
-            )}
+            <button 
+              onClick={toggleWatching} 
+              className={!isWatching ? "primary-btn" : "danger-btn"}
+            >
+              {!isWatching ? "Start Watching" : "Stop Watching"}
+            </button>
           </div>
           
           {isWatching && isConnected && (
@@ -124,7 +141,9 @@ function App() {
           <h2>Live Alerts Feed ({events.length})</h2>
           <div className="events-list">
             {events.length === 0 ? (
-              <p className="no-events">No alerts detected yet. Waiting for on-chain events...</p>
+              <p className="no-events">
+                {!isWatching ? "Enter a contract address and start watching..." : "No alerts detected yet. Waiting for on-chain events..."}
+              </p>
             ) : (
               events.map((ev, idx) => (
                 <div key={idx} className="event-card">
