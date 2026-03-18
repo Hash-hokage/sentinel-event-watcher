@@ -1,8 +1,12 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 
+/**
+ * @title Sentinel
+ * @notice Core contract for triggering alerts.
+ * @dev Fixed: Added access control to prevent unauthorized event spamming.
+ */
 contract Sentinel {
-    // The main event our frontend will watch for
     event AlertTriggered(
         address indexed sender,
         string indexed alertType,
@@ -10,18 +14,37 @@ contract Sentinel {
         uint256 timestamp
     );
 
-    // Keep track of total alerts triggered across the system
+    error OnlyAuthorized();
+
+    address public owner;
+    mapping(address => bool) public authorizedEmitters;
+
     uint256 public totalAlerts;
-    
-    // Keep track of how many alerts each address has triggered
     mapping(address => uint256) public alertsByUser;
 
+    modifier onlyOwner() {
+        require(msg.sender == owner, "NOT_OWNER");
+        _;
+    }
+
+    constructor() {
+        owner = msg.sender;
+        authorizedEmitters[msg.sender] = true;
+    }
+
     /**
-     * @dev Trigger a new alert which emits the AlertTriggered event
-     * @param alertType A categorical string (e.g., "SECURITY", "SYSTEM")
-     * @param message A detailed description of the alert
+     * @notice Authorize an address to trigger alerts.
+     */
+    function authorizeEmitter(address emitter, bool status) external onlyOwner {
+        authorizedEmitters[emitter] = status;
+    }
+
+    /**
+     * @dev Trigger a new alert. Only authorized addresses can call this.
      */
     function triggerAlert(string memory alertType, string memory message) external {
+        if (!authorizedEmitters[msg.sender]) revert OnlyAuthorized();
+        
         totalAlerts++;
         alertsByUser[msg.sender]++;
 

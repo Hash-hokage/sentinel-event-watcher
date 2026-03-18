@@ -3,9 +3,8 @@ pragma solidity ^0.8.19;
 
 /**
  * @title SentinelRegistry
- * @notice A central registry for users to manage their "Sentinels" (monitoring filters).
- * @dev Optimized for Somnia's gas model. Cold SLOADs are 1M gas, so we use
- *      event-driven architectures to minimize storage lookups where possible.
+ * @notice Manages user-defined monitoring configurations.
+ * @dev Fixed: Added validation for action targets to prevent malformed automated actions.
  */
 contract SentinelRegistry {
     enum SentinelType { WALLET_WATCH, PRICE_ALERT, SYSTEM_HEALTH }
@@ -13,20 +12,15 @@ contract SentinelRegistry {
     struct SentinelConfig {
         address owner;
         SentinelType sType;
-        address target;      // E.g., a whale address or a pair contract
-        uint256 threshold;   // E.g., transfer amount or price point
+        address target;
+        uint256 threshold;
         bool isActive;
-        address actionTarget; // Optional automated action
-        bytes actionData;     // Optional call data for the action
+        address actionTarget;
+        bytes actionData;
     }
 
-    // Keep track of total sentinels created
     uint256 public nextSentinelId;
-
-    // Registry of all sentinels
     mapping(uint256 => SentinelConfig) public sentinels;
-    
-    // Quick lookup for a user's sentinels (stores IDs)
     mapping(address => uint256[]) private userSentinelIds;
 
     event SentinelCreated(
@@ -40,11 +34,11 @@ contract SentinelRegistry {
     event SentinelToggled(uint256 indexed id, bool active);
 
     /**
-     * @notice Register a new monitoring Sentinel with optional action.
-     * @param sType The category of the sentinel (Whale, Price, etc.)
+     * @notice Register a new monitoring Sentinel with validation.
+     * @param sType The category of the sentinel.
      * @param target The address to monitor.
      * @param threshold The value triggering the alert.
-     * @param actionTarget The contract to call when triggered (0x0 for none).
+     * @param actionTarget The contract to call when triggered.
      * @param actionData The call data for the action.
      */
     function registerSentinel(
@@ -54,6 +48,12 @@ contract SentinelRegistry {
         address actionTarget,
         bytes calldata actionData
     ) external returns (uint256 id) {
+        // Validation: If actionTarget is provided, it must be a contract (or at least not the null address)
+        // Note: target could be an EOA (Whale Watch), but actionTarget is for execution.
+        if (actionTarget != address(0)) {
+            require(actionTarget.code.length > 0, "INVALID_ACTION_TARGET");
+        }
+
         id = nextSentinelId++;
         
         sentinels[id] = SentinelConfig({
@@ -71,19 +71,12 @@ contract SentinelRegistry {
         emit SentinelCreated(id, msg.sender, sType, target, threshold);
     }
 
-    /**
-     * @notice Toggle a sentinel's active status.
-     */
     function toggleSentinel(uint256 id) external {
         require(sentinels[id].owner == msg.sender, "UNAUTHORIZED");
         sentinels[id].isActive = !sentinels[id].isActive;
         emit SentinelToggled(id, sentinels[id].isActive);
     }
 
-    /**
-     * @notice Get all sentinel IDs for a specific user.
-     * @dev Somnia Gas Note: Reading arrays is cheaper if slots are warm.
-     */
     function getUserSentinels(address user) external view returns (uint256[] memory) {
         return userSentinelIds[user];
     }
