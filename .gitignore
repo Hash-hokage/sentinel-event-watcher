@@ -1,0 +1,23 @@
+# Gemini CLI & Agent Files
+.agents/
+.gemini/
+skills-lock.json
+
+# Dependencies
+node_modules/
+dist/
+out/
+bin/
+
+# Foundry
+lib/
+cache/
+broadcast/
+
+# Environment
+.env
+.env.*
+
+# OS
+.DS_Store
+Thumbs.db
