@@ -4,6 +4,7 @@ pragma solidity ^0.8.19;
 import {Script, console} from "forge-std/Script.sol";
 import {Sentinel} from "../src/Sentinel.sol";
 import {SentinelHandler} from "../src/SentinelHandler.sol";
+import {SentinelRegistry} from "../src/SentinelRegistry.sol";
 
 /**
  * @title DeploySomnia
@@ -28,6 +29,10 @@ contract DeploySomnia is Script {
         // 2. Deploy the Reactive Handler
         SentinelHandler handler = new SentinelHandler(address(sentinel));
         console.log("SentinelHandler deployed to Somnia at:", address(handler));
+
+        // 3. Deploy the SentinelRegistry
+        SentinelRegistry registry = new SentinelRegistry();
+        console.log("SentinelRegistry deployed to Somnia at:", address(registry));
 
         vm.stopBroadcast();
 

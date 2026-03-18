@@ -115,12 +115,113 @@ body {
 }
 
 /* Dashboard Grid */
-.dashboard-grid {
+.dashboard-grid.large {
+  grid-template-columns: 380px 1fr;
+}
+
+.add-sentinel-form {
+  background: rgba(30, 41, 59, 0.3);
+  padding: 1rem;
+  border: 1px solid #1e293b;
+  border-radius: 4px;
+  margin-bottom: 1rem;
+}
+
+.add-sentinel-form h3, .my-sentinels h3 {
+  font-size: 0.7rem;
+  color: var(--accent-secondary);
+  margin-top: 0;
+  margin-bottom: 0.75rem;
+  letter-spacing: 0.1em;
+}
+
+.add-sentinel-form select {
+  width: 100%;
+  background: var(--bg-deep);
+  border: 1px solid #334155;
+  padding: 0.5rem;
+  color: var(--text-bright);
+  font-family: var(--font-main);
+  margin-bottom: 0.5rem;
+  font-size: 0.7rem;
+}
+
+.add-sentinel-form input {
+  margin-bottom: 0.5rem !important;
+}
+
+.primary-btn.full-width {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  background: var(--accent-primary);
+  color: var(--bg-deep);
+  border: none;
+  padding: 0.6rem;
+  font-weight: bold;
+  cursor: pointer;
+  font-family: var(--font-main);
+}
+
+.my-sentinels {
   flex: 1;
-  display: grid;
-  grid-template-columns: 320px 1fr;
-  overflow: hidden;
-  z-index: 5;
+  overflow-y: auto;
+  margin-bottom: 1rem;
+}
+
+.sentinel-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.sentinel-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.5rem 0.75rem;
+  background: rgba(15, 23, 42, 0.8);
+  border: 1px solid #1e293b;
+  border-radius: 4px;
+}
+
+.sentinel-item.inactive {
+  opacity: 0.5;
+  border-style: dashed;
+}
+
+.s-info {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.s-type {
+  font-size: 0.6rem;
+  font-weight: 800;
+  color: var(--accent-secondary);
+  border: 1px solid var(--accent-secondary);
+  padding: 0.1rem 0.3rem;
+}
+
+.s-target {
+  font-size: 0.7rem;
+  color: var(--text-dim);
+}
+
+.toggle-icon {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0.2rem;
+  display: flex;
+  align-items: center;
+}
+
+.log-entry.reactive {
+  border-left: 4px solid var(--accent-secondary);
 }
 
 .control-panel {
