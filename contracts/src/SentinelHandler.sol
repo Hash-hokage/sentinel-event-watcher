@@ -1,28 +1,57 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.19;
+pragma solidity ^0.8.20;
 
-import { SomniaEventHandler } from "@somnia-chain/reactivity-contracts/contracts/SomniaEventHandler.sol";
+import { 
+    SomniaEventHandler 
+} from "@somnia-chain/reactivity-contracts/contracts/SomniaEventHandler.sol";
+import { 
+    ISomniaReactivityPrecompile, 
+    SomniaExtensions 
+} from "@somnia-chain/reactivity-contracts/contracts/interfaces/ISomniaReactivityPrecompile.sol";
 import { SentinelRegistry } from "./SentinelRegistry.sol";
 import { MockPriceOracle } from "./MockPriceOracle.sol";
 
 /**
  * @title SentinelHandler
- * @notice Reactive handler with upgradeable monitoring targets and price oracle integration.
+ * @notice Native Somnia Reactive Handler that monitors events and triggers automated actions.
+ * @dev This contract is invoked by the Somnia Reactivity Precompile (0x0100).
+ *      Somnia Gas Note: Cold storage reads are expensive (~1M gas). Keep logic lean.
+ *      Subscriptions are created per-emitter rather than as a single wildcard to comply
+ *      with the Somnia precompile requirement that at least one filter field be non-wildcard.
  */
 contract SentinelHandler is SomniaEventHandler {
-    address public owner;
+    error OnlyOwner();
+    error OnlyOwnerOrRegistry();
+    error AlreadySubscribed();
+    error NotSubscribed();
+
+    ISomniaReactivityPrecompile private constant PRECOMPILE =
+        ISomniaReactivityPrecompile(SomniaExtensions.SOMNIA_REACTIVITY_PRECOMPILE_ADDRESS);
+
+    address public immutable owner;
     address public monitoredSentinel;
     SentinelRegistry public registry;
     MockPriceOracle public oracle;
+
     uint256 public reactiveCallCount;
     uint256 public priceAlertsProcessed;
+    uint256 public blockTickSubId;
 
-    event ReactiveActionProcessed(address indexed sender, string alertType, uint256 timestamp);
+    /// @notice Maps an emitter address to its reactivity subscription ID.
+    mapping(address => uint256) public emitterSubIds;
+
+    event ReactiveActionProcessed(address indexed source, string alertType, uint256 timestamp);
     event MonitoredTargetUpdated(address oldTarget, address newTarget);
     event PriceThresholdAlert(address indexed asset, uint256 price, uint256 threshold);
 
     modifier onlyOwner() {
-        require(msg.sender == owner, "NOT_OWNER");
+        if (msg.sender != owner) revert OnlyOwner();
+        _;
+    }
+
+    /// @notice Allows the owner or the registry contract to call a function.
+    modifier onlyOwnerOrRegistry() {
+        if (msg.sender != owner && msg.sender != address(registry)) revert OnlyOwnerOrRegistry();
         _;
     }
 
@@ -34,16 +63,79 @@ contract SentinelHandler is SomniaEventHandler {
     }
 
     /**
-     * @notice Update the address of the Sentinel contract being monitored.
+     * @notice Allows the contract to receive STT to pay for its own subscriptions.
      */
+    receive() external payable {}
+
+    /**
+     * @notice Creates the on-chain BlockTick subscription for automated price monitoring.
+     * @dev Requires the contract balance to be >= 32 STT.
+     */
+    function subscribeToBlockTick() external onlyOwner {
+        if (blockTickSubId != 0) revert AlreadySubscribed();
+
+        ISomniaReactivityPrecompile.SubscriptionData memory subData =
+            ISomniaReactivityPrecompile.SubscriptionData({
+                eventTopics: [keccak256("BlockTick(uint64)"), bytes32(0), bytes32(0), bytes32(0)],
+                origin: address(0),
+                caller: address(0),
+                emitter: SomniaExtensions.SOMNIA_REACTIVITY_PRECOMPILE_ADDRESS,
+                handlerContractAddress: address(this),
+                handlerFunctionSelector: this.onEvent.selector,
+                priorityFeePerGas: 2_000_000_000,
+                maxFeePerGas: 10_000_000_000,
+                gasLimit: 3_000_000,
+                isGuaranteed: true,
+                isCoalesced: false
+            });
+
+        blockTickSubId = PRECOMPILE.subscribe(subData);
+    }
+
+    /**
+     * @notice Creates a per-emitter reactivity subscription.
+     * @dev Can be called by the owner or automatically by the registry when a new sentinel is registered.
+     *      Reverts with `AlreadySubscribed` if a subscription for this emitter already exists.
+     * @param _emitter The contract address to subscribe to events from.
+     */
+    function subscribeToEmitter(address _emitter) external onlyOwnerOrRegistry {
+        require(emitterSubIds[_emitter] == 0, "Already subscribed to this emitter");
+
+        ISomniaReactivityPrecompile.SubscriptionData memory subData =
+            ISomniaReactivityPrecompile.SubscriptionData({
+                eventTopics: [bytes32(0), bytes32(0), bytes32(0), bytes32(0)],
+                origin: address(0),
+                caller: address(0),
+                emitter: _emitter,
+                handlerContractAddress: address(this),
+                handlerFunctionSelector: this.onEvent.selector,
+                priorityFeePerGas: 2_000_000_000,
+                maxFeePerGas: 10_000_000_000,
+                gasLimit: 1_000_000,
+                isGuaranteed: true,
+                isCoalesced: false
+            });
+
+        emitterSubIds[_emitter] = PRECOMPILE.subscribe(subData);
+    }
+
+    /**
+     * @notice Cancels a per-emitter reactivity subscription.
+     * @dev Reverts with `NotSubscribed` if no subscription exists for this emitter.
+     * @param _emitter The contract address to unsubscribe from.
+     */
+    function unsubscribeFromEmitter(address _emitter) external onlyOwner {
+        uint256 subId = emitterSubIds[_emitter];
+        require(subId != 0, "Not subscribed to this emitter");
+        PRECOMPILE.unsubscribe(subId);
+        emitterSubIds[_emitter] = 0;
+    }
+
     function setMonitoredSentinel(address _newSentinel) external onlyOwner {
         emit MonitoredTargetUpdated(monitoredSentinel, _newSentinel);
         monitoredSentinel = _newSentinel;
     }
 
-    /**
-     * @notice Update the registry and oracle addresses.
-     */
     function setExternalContracts(address _registry, address _oracle) external onlyOwner {
         registry = SentinelRegistry(_registry);
         oracle = MockPriceOracle(_oracle);
@@ -51,43 +143,30 @@ contract SentinelHandler is SomniaEventHandler {
 
     function _onEvent(
         address emitter,
-        bytes32[] calldata eventTopics,
-        bytes calldata data
+        bytes32[] calldata,
+        bytes calldata
     ) internal override {
-        // 1. Handle BlockTick from Somnia Precompile (0x0100)
-        if (emitter == address(0x0100)) {
+        if (emitter == SomniaExtensions.SOMNIA_REACTIVITY_PRECOMPILE_ADDRESS) {
             _processPriceChecks();
             return;
         }
 
-        // 2. Handle events from registered Sentinel targets OR the main monitored sentinel
         if (emitter != monitoredSentinel && !registry.isTargetRegistered(emitter)) return;
 
         reactiveCallCount++;
-
-        // Identify the event type if possible (simplified for MVP)
-        string memory alertType = "REACTIVE_SIGNAL";
-        if (emitter == monitoredSentinel) {
-            alertType = "SENTINEL_DIRECT_ALERT";
-        }
-
+        string memory alertType = (emitter == monitoredSentinel) ? "SENTINEL_DIRECT_ALERT" : "REACTIVE_SIGNAL";
         emit ReactiveActionProcessed(emitter, alertType, block.timestamp);
     }
 
-    /**
-     * @dev Process price checks for active sentinels in the registry.
-     * Note: In a production environment, we might use a more efficient way to filter sentinels.
-     */
     function _processPriceChecks() internal {
         uint256 totalSentinels = registry.nextSentinelId();
-        
         for (uint256 i = 0; i < totalSentinels; i++) {
-            (address sOwner, SentinelRegistry.SentinelType sType, address target, uint256 threshold, bool isActive, , ) = registry.sentinels(i);
+            (
+                , SentinelRegistry.SentinelType sType, address target, uint256 threshold, bool isActive, , 
+            ) = registry.sentinels(i);
             
             if (isActive && sType == SentinelRegistry.SentinelType.PRICE_ALERT) {
                 uint256 currentPrice = oracle.getPrice(target);
-                
-                // Trigger if price >= threshold
                 if (currentPrice >= threshold && currentPrice > 0) {
                     priceAlertsProcessed++;
                     emit PriceThresholdAlert(target, currentPrice, threshold);

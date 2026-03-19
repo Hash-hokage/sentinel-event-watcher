@@ -28,6 +28,11 @@ const somniaTestnet = defineChain({
   }
 });
 
+const REGISTRY_ADDRESS = '0xeaf2c62c7486c10dac2a1afa31ebcb40759a6ed2';
+const HANDLER_ADDRESS = '0xe95d0a5ec446bf84117961d0ae3ccd2452c451d1';
+const ORACLE_ADDRESS = '0xf586CdD8386e5692b8AB7ef04572700d69eE533C';
+const CORE_SENTINEL = '0x9FeD00Dc284464e66C996dF0fc3ee24e440ED660';
+
 const REGISTRY_ABI = [
     "function registerSentinel(uint8 sType, address target, uint256 threshold, address actionTarget, bytes actionData) external returns (uint256)",
     "function getUserSentinels(address user) external view returns (uint256[] memory)",
@@ -56,7 +61,7 @@ interface EventLog {
 }
 
 function App() {
-  const [registryAddress, setRegistryAddress] = useState('');
+  const [registryAddress, setRegistryAddress] = useState(REGISTRY_ADDRESS);
   const [isConnected, setIsConnected] = useState(false);
   const [account, setAccount] = useState<`0x${string}`>();
   const [mySentinels, setMySentinels] = useState<SentinelConfig[]>([]);
@@ -156,7 +161,7 @@ function App() {
                 isActive: data[4],
                 actionTarget: data[5],
                 actionData: data[6]
-            };
+            } as SentinelConfig;
         }));
         setMySentinels(configs);
     } catch (err) {
@@ -269,13 +274,10 @@ function App() {
           <span className="brand-text">SENTINEL<span>AUTOMATION</span></span>
         </div>
         <div className="nav-actions">
-          <input 
-            type="text" 
-            placeholder="Registry 0x..." 
-            className="registry-input"
-            value={registryAddress}
-            onChange={(e) => setRegistryAddress(e.target.value)}
-          />
+          <div className="system-links">
+            <span className="addr-pill">REG: {REGISTRY_ADDRESS.slice(0,6)}...</span>
+            <span className="addr-pill">HND: {HANDLER_ADDRESS.slice(0,6)}...</span>
+          </div>
           {sessionClient && (
             <div className="session-pill">
               <Zap size={14} color="#f59e0b" />

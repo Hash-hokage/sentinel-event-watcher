@@ -591,3 +591,33 @@ body {
 ::-webkit-scrollbar-track { background: var(--bg-deep); }
 ::-webkit-scrollbar-thumb { background: #334155; }
 ::-webkit-scrollbar-thumb:hover { background: var(--accent-secondary); }
+
+/* Nav Actions */
+.nav-actions {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.system-links {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.addr-pill {
+  font-size: 0.65rem;
+  color: var(--text-dim);
+  background: var(--bg-panel);
+  padding: 0.25rem 0.6rem;
+  border-radius: 999px;
+  border: 1px solid #1e293b;
+}
+
+.chart-body {
+  width: 100%;
+}
+
+.logo-icon {
+  color: var(--accent-primary);
+}
+
