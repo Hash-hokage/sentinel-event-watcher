@@ -64,6 +64,8 @@ interface EventLog {
     msg: string;
     time: string;
     emitter: string;
+    blockNumber: number;
+    receivedAt: number;
 }
 
 function App() {
@@ -71,8 +73,9 @@ function App() {
   const [isConnected, setIsConnected] = useState(false);
   const [account, setAccount] = useState<`0x${string}`>();
   const [mySentinels, setMySentinels] = useState<SentinelConfig[]>([]);
+  const [allSentinels, setAllSentinels] = useState<SentinelConfig[]>([]);
   const [events, setEvents] = useState<EventLog[]>([]);
-  const [isWatching, setIsWatching] = useState(false);
+  const [isWatching, setIsWatching] = useState(true);
   
   // Session Account State
   const [sessionSeed, setSessionSeed] = useState('');
@@ -91,10 +94,26 @@ function App() {
   const [priceAlertCount, setPriceAlertCount] = useState<bigint>(0n);
   const [blockTickSubId, setBlockTickSubId] = useState<bigint>(0n);
 
+  // Live Block Number
+  const [blockNumber, setBlockNumber] = useState<bigint>(0n);
+
+  // Copy to Clipboard
+  const [copiedChip, setCopiedChip] = useState<string | null>(null);
+
   const publicClient = useMemo(() => createPublicClient({
     chain: somniaTestnet,
     transport: http()
   }), []);
+
+  useEffect(() => {
+    const interval = setInterval(async () => {
+      try {
+        const block = await publicClient.getBlockNumber();
+        setBlockNumber(block);
+      } catch {}
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [publicClient]);
 
   const sdk = useMemo(() => new SDK({ public: publicClient }), [publicClient]);
 
@@ -117,6 +136,12 @@ function App() {
     return Object.entries(counts).map(([name, value]) => ({ name, value }));
   }, [events]);
 
+  const copyToClipboard = (label: string, value: string) => {
+    navigator.clipboard.writeText(value).catch(() => {});
+    setCopiedChip(label);
+    setTimeout(() => setCopiedChip(null), 1500);
+  };
+
   const connectWallet = async () => {
     if (window.ethereum) {
       const walletClient = createWalletClient({ chain: somniaTestnet, transport: custom(window.ethereum) });
@@ -127,22 +152,19 @@ function App() {
   };
 
   const initSession = async () => {
-    if (!sessionSeed) {
-        const randomSeed = toHex(crypto.getRandomValues(new Uint8Array(32)));
-        setSessionSeed(randomSeed);
-        return;
-    }
     try {
-        const client = await createSessionClient({
-            seed: sessionSeed as `0x${string}`,
-            chain: somniaTestnet,
-            transport: http(),
-        });
-        setSessionClient(client);
-        const bal = await publicClient.getBalance({ address: client.account.address });
-        setSessionBalance(formatEther(bal));
+      const seed = sessionSeed || toHex(crypto.getRandomValues(new Uint8Array(32)));
+      if (!sessionSeed) setSessionSeed(seed);
+      const client = await createSessionClient({
+        seed: seed as `0x${string}`,
+        chain: somniaTestnet,
+        transport: http(),
+      });
+      setSessionClient(client);
+      const bal = await publicClient.getBalance({ address: client.account.address });
+      setSessionBalance(formatEther(bal));
     } catch (err) {
-        console.error("Session Init Error:", err);
+      console.error('Session Init Error:', err);
     }
   };
 
@@ -191,14 +213,15 @@ function App() {
             args: [
                 newType, 
                 newTarget as `0x${string}`, 
-                parseEther(newThreshold || '0'), 
+                BigInt(newThreshold || '0'), 
                 (actionTarget || '0x0000000000000000000000000000000000000000') as `0x${string}`, 
                 (actionData || '0x') as `0x${string}`
             ],
             account
         });
-        await walletClient.writeContract(request);
-        setTimeout(fetchSentinels, 5000);
+        const hash = await walletClient.writeContract(request);
+        await publicClient.waitForTransactionReceipt({ hash });
+        fetchSentinels();
     } catch (err) {
         console.error(err);
     }
@@ -215,11 +238,48 @@ function App() {
               args: [id],
               account
           });
-          await walletClient.writeContract(request);
-          setTimeout(fetchSentinels, 5000);
+          const hash = await walletClient.writeContract(request);
+          await publicClient.waitForTransactionReceipt({ hash });
+          fetchSentinels();
       } catch (err) {
           console.error(err);
       }
+  };
+
+  const fetchAllSentinels = async () => {
+    try {
+      const total = await publicClient.readContract({
+        address: REGISTRY_ADDRESS as `0x${string}`,
+        abi: [{ name: 'nextSentinelId', type: 'function', stateMutability: 'view', inputs: [], outputs: [{ type: 'uint256' }] }],
+        functionName: 'nextSentinelId',
+      });
+      const count = Number(total);
+      if (count === 0) return;
+      const cap = Math.min(count, 20);
+      const configs = await Promise.all(
+        Array.from({ length: cap }, (_, i) => i).map(async (i) => {
+          const data = await publicClient.readContract({
+            address: REGISTRY_ADDRESS as `0x${string}`,
+            abi: REGISTRY_ABI,
+            functionName: 'sentinels',
+            args: [BigInt(i)],
+          });
+          return {
+            id: BigInt(i),
+            owner: data[0],
+            sType: data[1],
+            target: data[2],
+            threshold: data[3],
+            isActive: data[4],
+            actionTarget: data[5],
+            actionData: data[6],
+          } as SentinelConfig;
+        })
+      );
+      setAllSentinels(configs);
+    } catch (err) {
+      console.error('fetchAllSentinels error:', err);
+    }
   };
 
   const fetchOnChainStats = useCallback(async () => {
@@ -244,54 +304,77 @@ function App() {
   }, [fetchOnChainStats]);
 
   useEffect(() => {
+    fetchAllSentinels();
+  }, []);
+
+  useEffect(() => {
     if (isConnected && registryAddress) fetchSentinels();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isConnected, registryAddress, account]);
 
   useEffect(() => {
+    if (!isWatching) return;
     let subscription: any;
-    if (isWatching && mySentinels.length > 0) {
-        const activeSentinels = mySentinels.filter(s => s.isActive);
-        const activeTargets = activeSentinels.map(s => s.target);
-        
-        sdk.subscribe({
-            eventContractSources: activeTargets,
-            ethCalls: [],
-            onData: async (data) => {
-                const emitter = data.result.emitter.toLowerCase();
-                const matchedSentinel = activeSentinels.find(s => s.target.toLowerCase() === emitter);
 
-                const newEvent: EventLog = {
-                    id: Date.now(),
-                    type: matchedSentinel?.actionTarget !== '0x0000000000000000000000000000000000000000' ? "AUTO_REACTIVE_ACTION" : "REACTIVE_SIGNAL",
-                    msg: `Signal from ${emitter.slice(0, 10)}... ${matchedSentinel?.actionTarget !== '0x0000000000000000000000000000000000000000' ? '-> EXECUTING ACTION' : ''}`,
-                    time: new Date().toLocaleTimeString(),
-                    emitter: data.result.emitter
-                };
-                setEvents(prev => [newEvent, ...prev].slice(0, 50));
+    const systemSources = [HANDLER_ADDRESS, REGISTRY_ADDRESS, ORACLE_ADDRESS];
+    const userTargets = mySentinels
+      .filter(s => s.isActive)
+      .map(s => s.target);
+    const allSources = [...new Set([...systemSources, ...userTargets])];
 
-                if (matchedSentinel && matchedSentinel.actionTarget !== '0x0000000000000000000000000000000000000000' && sessionClient) {
-                    try {
-                        const hash = await sessionClient.sendTransaction({
-                            to: matchedSentinel.actionTarget,
-                            data: matchedSentinel.actionData,
-                        });
-                        console.log("Action Sent! Hash:", hash);
-                        const actionEvent: EventLog = {
-                            id: Date.now() + 1,
-                            type: "SESSION_TX_CONFIRMED",
-                            msg: `Action sent to ${matchedSentinel.actionTarget.slice(0,10)}...`,
-                            time: new Date().toLocaleTimeString(),
-                            emitter: "SESSION_ACCOUNT"
-                        };
-                        setEvents(prev => [actionEvent, ...prev].slice(0, 50));
-                    } catch (err) {
-                        console.error("Automated Action Failed:", err);
-                    }
-                }
-            }
-        }).then(sub => subscription = sub);
-    }
+    sdk.subscribe({
+      eventContractSources: allSources,
+      ethCalls: [],
+      onData: async (data) => {
+        const emitter = data.result.emitter.toLowerCase();
+        const matchedSentinel = mySentinels.find(
+          s => s.isActive && s.target.toLowerCase() === emitter
+        );
+
+        const newEvent: EventLog = {
+          id: Date.now(),
+          type: matchedSentinel?.actionTarget !== '0x0000000000000000000000000000000000000000'
+            ? 'AUTO_REACTIVE_ACTION'
+            : 'REACTIVE_SIGNAL',
+          msg: `Signal from ${emitter.slice(0, 10)}... ${
+            matchedSentinel?.actionTarget !== '0x0000000000000000000000000000000000000000'
+              ? '-> EXECUTING ACTION'
+              : ''
+          }`,
+          time: new Date().toLocaleTimeString(),
+          emitter: data.result.emitter,
+          blockNumber: Number(data.result.blockNumber ?? 0),
+          receivedAt: Date.now(),
+        };
+        setEvents(prev => [newEvent, ...prev].slice(0, 50));
+
+        if (
+          matchedSentinel &&
+          matchedSentinel.actionTarget !== '0x0000000000000000000000000000000000000000' &&
+          sessionClient
+        ) {
+          try {
+            const hash = await sessionClient.sendTransaction({
+              to: matchedSentinel.actionTarget,
+              data: matchedSentinel.actionData,
+            });
+            const actionEvent: EventLog = {
+              id: Date.now() + 1,
+              type: 'SESSION_TX_CONFIRMED',
+              msg: `Action sent to ${matchedSentinel.actionTarget.slice(0, 10)}...`,
+              time: new Date().toLocaleTimeString(),
+              emitter: 'SESSION_ACCOUNT',
+              blockNumber: 0,
+              receivedAt: Date.now(),
+            };
+            setEvents(prev => [actionEvent, ...prev].slice(0, 50));
+          } catch (err) {
+            console.error('Automated Action Failed:', err);
+          }
+        }
+      },
+    }).then(sub => (subscription = sub));
+
     return () => subscription?.unsubscribe();
   }, [isWatching, mySentinels, sdk, sessionClient]);
 
@@ -307,8 +390,15 @@ function App() {
         </div>
         <div className="nav-actions">
           <div className="system-links">
-            <span className="addr-pill">REG: {REGISTRY_ADDRESS.slice(0,6)}...</span>
-            <span className="addr-pill">HND: {HANDLER_ADDRESS.slice(0,6)}...</span>
+            <button className="addr-pill" onClick={() => copyToClipboard('REG', REGISTRY_ADDRESS)} title={REGISTRY_ADDRESS}>
+              {copiedChip === 'REG' ? 'COPIED ✓' : `REG: ${REGISTRY_ADDRESS.slice(0, 6)}...`}
+            </button>
+            <button className="addr-pill" onClick={() => copyToClipboard('HND', HANDLER_ADDRESS)} title={HANDLER_ADDRESS}>
+              {copiedChip === 'HND' ? 'COPIED ✓' : `HND: ${HANDLER_ADDRESS.slice(0, 6)}...`}
+            </button>
+            <button className="addr-pill" onClick={() => copyToClipboard('ORC', ORACLE_ADDRESS)} title={ORACLE_ADDRESS}>
+              {copiedChip === 'ORC' ? 'COPIED ✓' : `ORC: ${ORACLE_ADDRESS.slice(0, 6)}...`}
+            </button>
           </div>
           {sessionClient && (
             <div className="session-pill">
@@ -336,11 +426,11 @@ function App() {
           </div>
           
           <div className="session-manager">
-            <h3>SESSION_ACCOUNT (NONCELESS)</h3>
+            <h3>DISPOSABLE SESSION KEY</h3>
             <div className="input-group-row">
                 <input 
-                    type="password" 
-                    placeholder="Seed" 
+                    type="text" 
+                    placeholder="Leave empty to auto-generate" 
                     value={sessionSeed}
                     onChange={(e) => setSessionSeed(e.target.value)}
                 />
@@ -348,6 +438,9 @@ function App() {
                     <Key size={14} /> {sessionClient ? "RLD" : "INIT"}
                 </button>
             </div>
+            <p className="session-disclaimer">
+              ⚠ Auto-generated throwaway key — never enter your real wallet seed
+            </p>
             {sessionClient && <p className="session-addr">{sessionClient.account.address}</p>}
           </div>
 
@@ -370,25 +463,34 @@ function App() {
           </div>
 
           <div className="my-sentinels">
-              <h3>ACTIVE_AGENTS ({mySentinels.length})</h3>
-              <div className="sentinel-list">
-                  {mySentinels.map((s, idx) => (
-                      <div key={idx} className={`sentinel-item ${s.isActive ? 'active' : 'inactive'}`}>
+              {(() => {
+                const displaySentinels = mySentinels.length > 0 ? mySentinels : allSentinels;
+                return (
+                  <>
+                    <h3>ACTIVE_AGENTS ({displaySentinels.length})</h3>
+                    <div className="sentinel-list">
+                      {displaySentinels.map((s, idx) => (
+                        <div key={idx} className={`sentinel-item ${s.isActive ? 'active' : 'inactive'}`}>
                           <div className="s-info">
-                              <span className="s-type">{s.sType === 0 ? "WAL" : s.sType === 1 ? "PRI" : s.sType === 2 ? "SYS" : "BRG"}</span>
-                              <div className="s-details">
-                                <span className="s-target">{s.target.slice(0, 10)}...</span>
-                                {s.actionTarget !== '0x0000000000000000000000000000000000000000' && (
-                                    <span className="s-action-badge">AUTO</span>
-                                )}
-                              </div>
+                            <span className="s-type">{s.sType === 0 ? "WAL" : s.sType === 1 ? "PRI" : s.sType === 2 ? "SYS" : "BRG"}</span>
+                            <div className="s-details">
+                              <span className="s-target">{s.target.slice(0, 10)}...</span>
+                              {s.actionTarget !== '0x0000000000000000000000000000000000000000' && (
+                                <span className="s-action-badge">AUTO</span>
+                              )}
+                            </div>
                           </div>
-                          <button onClick={() => toggleSentinel(s.id)} className="toggle-icon">
+                          {mySentinels.some(ms => ms.id === s.id) && (
+                            <button onClick={() => toggleSentinel(s.id)} className="toggle-icon">
                               <Power size={14} color={s.isActive ? "#10b981" : "#64748b"} />
-                          </button>
-                      </div>
-                  ))}
-              </div>
+                            </button>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </>
+                );
+              })()}
           </div>
 
           <button 
@@ -426,6 +528,9 @@ function App() {
                         <div className="log-meta">
                         <span className="log-type">{ev.type}</span>
                         <span className="log-time">{ev.time}</span>
+                        {ev.blockNumber > 0 && (
+                          <span className="log-block">⚡ block #{ev.blockNumber.toLocaleString()}</span>
+                        )}
                         </div>
                         <p className="log-msg">{ev.msg}</p>
                     </motion.div>
@@ -541,7 +646,8 @@ function App() {
 
       <footer className="system-footer">
         <div className="footer-item">REACTIVE_MODE: AUTO</div>
-        <div className="footer-item">SESSION_READY: {sessionClient ? "YES" : "NO"}</div>
+        <div className="footer-item">BLOCK: <span className="val green">#{blockNumber.toLocaleString()}</span></div>
+        <div className="footer-item">SUBSCRIPTIONS: <span className={`val ${isWatching ? 'green' : ''}`}>{isWatching ? 'ACTIVE' : 'STANDBY'}</span></div>
         <div className="footer-item">CORE_SYSTEM: V3.0.0-STABLE</div>
       </footer>
     </div>
