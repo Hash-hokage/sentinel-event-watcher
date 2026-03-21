@@ -1,11 +1,11 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { createPublicClient, createWalletClient, custom, http, defineChain, formatEther, parseEther, toHex } from 'viem';
 import { SDK } from '@somnia-chain/reactivity';
 import { createSessionClient } from '@somnia-chain/viem-session-account';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Shield, Radio, Activity, Wallet, Terminal, 
-  Cpu, Globe, Plus, Power, Key, Zap, BarChart3, TrendingUp 
+  Cpu, Globe, Plus, Power, Key, Zap, BarChart3, TrendingUp, RefreshCw, ArrowRight 
 } from 'lucide-react';
 import { 
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, 
@@ -39,6 +39,12 @@ const REGISTRY_ABI = [
     "function sentinels(uint256) external view returns (address owner, uint8 sType, address target, uint256 threshold, bool isActive, address actionTarget, bytes actionData)",
     "function toggleSentinel(uint256 id) external",
     "event SentinelCreated(uint256 indexed id, address indexed owner, uint8 indexed sType, address target, uint256 threshold)"
+] as const;
+
+const HANDLER_ABI = [
+    "function reactiveCallCount() external view returns (uint256)",
+    "function priceAlertsProcessed() external view returns (uint256)",
+    "function blockTickSubId() external view returns (uint256)",
 ] as const;
 
 interface SentinelConfig {
@@ -79,6 +85,11 @@ function App() {
   const [newType, setNewType] = useState(0);
   const [actionTarget, setActionTarget] = useState('');
   const [actionData, setActionData] = useState('0x');
+
+  // On-Chain Reactivity Stats
+  const [reactiveCallCount, setReactiveCallCount] = useState<bigint>(0n);
+  const [priceAlertCount, setPriceAlertCount] = useState<bigint>(0n);
+  const [blockTickSubId, setBlockTickSubId] = useState<bigint>(0n);
 
   const publicClient = useMemo(() => createPublicClient({
     chain: somniaTestnet,
@@ -210,6 +221,27 @@ function App() {
           console.error(err);
       }
   };
+
+  const fetchOnChainStats = useCallback(async () => {
+    try {
+      const [calls, alerts, subId] = await Promise.all([
+        publicClient.readContract({ address: HANDLER_ADDRESS as `0x${string}`, abi: HANDLER_ABI, functionName: 'reactiveCallCount' }),
+        publicClient.readContract({ address: HANDLER_ADDRESS as `0x${string}`, abi: HANDLER_ABI, functionName: 'priceAlertsProcessed' }),
+        publicClient.readContract({ address: HANDLER_ADDRESS as `0x${string}`, abi: HANDLER_ABI, functionName: 'blockTickSubId' }),
+      ]);
+      setReactiveCallCount(calls as bigint);
+      setPriceAlertCount(alerts as bigint);
+      setBlockTickSubId(subId as bigint);
+    } catch (err) {
+      console.error('Stats fetch error:', err);
+    }
+  }, [publicClient]);
+
+  useEffect(() => {
+    fetchOnChainStats();
+    const interval = setInterval(fetchOnChainStats, 8000);
+    return () => clearInterval(interval);
+  }, [fetchOnChainStats]);
 
   useEffect(() => {
     if (isConnected && registryAddress) fetchSentinels();
@@ -464,6 +496,44 @@ function App() {
                         <span className="val">{mySentinels.filter(s => s.isActive).length}</span>
                     </div>
                 </div>
+
+                <div className="on-chain-stats">
+                    <div className="chart-header">
+                        <RefreshCw size={14} className={isWatching ? 'spin' : ''} />
+                        <span>ON-CHAIN REACTIVITY STATE (LIVE)</span>
+                    </div>
+                    <div className="stat-grid">
+                        <div className="stat-card">
+                            <span className="stat-label">REACTIVE_CALLS</span>
+                            <span className="stat-value">{reactiveCallCount.toString()}</span>
+                        </div>
+                        <div className="stat-card">
+                            <span className="stat-label">PRICE_ALERTS</span>
+                            <span className="stat-value">{priceAlertCount.toString()}</span>
+                        </div>
+                        <div className="stat-card">
+                            <span className="stat-label">BLOCKTICK_SUB</span>
+                            <span className="stat-value status">{blockTickSubId > 0n ? 'ACTIVE' : 'NONE'}</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div className="architecture-card">
+                    <div className="chart-header">
+                        <Cpu size={14} />
+                        <span>SOMNIA REACTIVITY LOOP</span>
+                    </div>
+                    <div className="arch-flow">
+                        <div className="arch-node emitter">Event Emitter<span>Sentinel / Oracle / Bridge</span></div>
+                        <ArrowRight size={16} className="arch-arrow" />
+                        <div className="arch-node precompile">0x0100<span>Reactivity Precompile</span></div>
+                        <ArrowRight size={16} className="arch-arrow" />
+                        <div className="arch-node handler">SentinelHandler<span>_onEvent() callback</span></div>
+                        <ArrowRight size={16} className="arch-arrow" />
+                        <div className="arch-node frontend">Dashboard<span>WSS push via SDK</span></div>
+                    </div>
+                    <p className="arch-desc">Events are pushed by validators — zero polling, zero indexers. State reads are atomic at event block height.</p>
+                </div>
             </div>
           </div>
         </section>
@@ -472,7 +542,7 @@ function App() {
       <footer className="system-footer">
         <div className="footer-item">REACTIVE_MODE: AUTO</div>
         <div className="footer-item">SESSION_READY: {sessionClient ? "YES" : "NO"}</div>
-        <div className="footer-item">CORE_SYSTEM: V2.1.0-STABLE</div>
+        <div className="footer-item">CORE_SYSTEM: V3.0.0-STABLE</div>
       </footer>
     </div>
   );

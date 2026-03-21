@@ -99,7 +99,7 @@ contract SentinelHandler is SomniaEventHandler {
      * @param _emitter The contract address to subscribe to events from.
      */
     function subscribeToEmitter(address _emitter) external onlyOwnerOrRegistry {
-        require(emitterSubIds[_emitter] == 0, "Already subscribed to this emitter");
+        if (emitterSubIds[_emitter] != 0) revert AlreadySubscribed();
 
         ISomniaReactivityPrecompile.SubscriptionData memory subData =
             ISomniaReactivityPrecompile.SubscriptionData({
@@ -126,7 +126,7 @@ contract SentinelHandler is SomniaEventHandler {
      */
     function unsubscribeFromEmitter(address _emitter) external onlyOwner {
         uint256 subId = emitterSubIds[_emitter];
-        require(subId != 0, "Not subscribed to this emitter");
+        if (subId == 0) revert NotSubscribed();
         PRECOMPILE.unsubscribe(subId);
         emitterSubIds[_emitter] = 0;
     }
@@ -141,10 +141,20 @@ contract SentinelHandler is SomniaEventHandler {
         oracle = MockPriceOracle(_oracle);
     }
 
+    /**
+     * @notice Core reactive callback invoked by the Somnia Reactivity Precompile.
+     * @dev Routes incoming events based on the emitter address:
+     *      - Precompile (0x0100) → BlockTick handler for periodic price checks.
+     *      - monitoredSentinel / registered target → Reactive signal processing.
+     *      All other emitters are silently ignored.
+     * @param emitter The contract that emitted the original event.
+     * @param eventTopics The indexed topics from the event log.
+     * @param data The non-indexed ABI-encoded event data.
+     */
     function _onEvent(
         address emitter,
-        bytes32[] calldata,
-        bytes calldata
+        bytes32[] calldata eventTopics,
+        bytes calldata data
     ) internal override {
         if (emitter == SomniaExtensions.SOMNIA_REACTIVITY_PRECOMPILE_ADDRESS) {
             _processPriceChecks();
@@ -158,6 +168,12 @@ contract SentinelHandler is SomniaEventHandler {
         emit ReactiveActionProcessed(emitter, alertType, block.timestamp);
     }
 
+    /**
+     * @notice Iterates all registered sentinels and fires price alerts when thresholds are exceeded.
+     * @dev Called on every BlockTick from the Somnia Reactivity Precompile,
+     *      enabling high-frequency autonomous price monitoring without external cron.
+     *      Somnia Gas: caches `totalSentinels` in memory to avoid repeated cold SLOAD.
+     */
     function _processPriceChecks() internal {
         uint256 totalSentinels = registry.nextSentinelId();
         for (uint256 i = 0; i < totalSentinels; i++) {

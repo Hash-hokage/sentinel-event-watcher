@@ -65,7 +65,7 @@ contract SentinelRegistryTest is Test {
     function test_CannotRegisterInvalidActionTarget() public {
         vm.prank(user);
         // address(0x789) is an EOA (no code), should fail
-        vm.expectRevert("INVALID_ACTION_TARGET");
+        vm.expectRevert(abi.encodeWithSelector(SentinelRegistry.InvalidActionTarget.selector, address(0x789)));
         registry.registerSentinel(
             SentinelRegistry.SentinelType.WALLET_WATCH,
             address(0x123),
@@ -86,7 +86,7 @@ contract SentinelRegistryTest is Test {
         );
 
         vm.prank(address(0xBAD));
-        vm.expectRevert("UNAUTHORIZED");
+        vm.expectRevert(SentinelRegistry.Unauthorized.selector);
         registry.toggleSentinel(id);
     }
 }

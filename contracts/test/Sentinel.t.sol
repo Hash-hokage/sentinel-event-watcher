@@ -52,7 +52,7 @@ contract SentinelTest is Test {
 
     function test_NonOwnerCannotAuthorize() public {
         vm.prank(unauthorized);
-        vm.expectRevert("NOT_OWNER");
+        vm.expectRevert(Sentinel.OnlyOwner.selector);
         sentinel.authorizeEmitter(unauthorized, true);
     }
 }

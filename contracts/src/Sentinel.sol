@@ -50,6 +50,7 @@ contract Sentinel {
 
     /**
      * @notice Authorizes or revokes an address's ability to trigger alerts.
+     * @dev Reverts with `OnlyOwner` if the caller is not the contract deployer.
      * @param emitter The address to update.
      * @param status True to authorize, false to revoke.
      */
@@ -61,6 +62,7 @@ contract Sentinel {
      * @notice Triggers a new system-wide alert.
      * @dev Only authorized addresses can call this.
      *      Emits the `AlertTriggered` event which the Reactivity layer picks up.
+     *      Reverts with `OnlyAuthorized` if the caller is not an authorized emitter.
      * @param alertType The category of the alert.
      * @param message Detailed information about the trigger.
      */

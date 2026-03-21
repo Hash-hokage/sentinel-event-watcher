@@ -621,3 +621,100 @@ body {
   color: var(--accent-primary);
 }
 
+/* On-Chain Stats */
+.on-chain-stats {
+  background: rgba(15, 23, 42, 0.8);
+  border: 1px solid #1e293b;
+  border-radius: 4px;
+  padding: 1rem;
+}
+
+.stat-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 0.5rem;
+}
+
+.stat-card {
+  background: var(--bg-deep);
+  border: 1px solid #334155;
+  border-radius: 4px;
+  padding: 0.75rem 0.5rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.stat-label {
+  font-size: 0.5rem;
+  color: var(--text-dim);
+  letter-spacing: 0.08em;
+}
+
+.stat-value {
+  font-size: 1.1rem;
+  font-weight: 800;
+  color: var(--accent-primary);
+}
+
+.stat-value.status {
+  font-size: 0.7rem;
+  color: var(--accent-secondary);
+}
+
+/* Architecture Card */
+.architecture-card {
+  background: rgba(15, 23, 42, 0.8);
+  border: 1px solid #1e293b;
+  border-radius: 4px;
+  padding: 1rem;
+}
+
+.arch-flow {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-bottom: 0.75rem;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.arch-node {
+  background: var(--bg-deep);
+  border: 1px solid #334155;
+  border-radius: 4px;
+  padding: 0.5rem 0.6rem;
+  font-size: 0.6rem;
+  font-weight: 700;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  min-width: 0;
+}
+
+.arch-node span {
+  font-size: 0.45rem;
+  color: var(--text-dim);
+  font-weight: 400;
+}
+
+.arch-node.emitter { border-color: #f59e0b; color: #f59e0b; }
+.arch-node.precompile { border-color: var(--accent-danger); color: var(--accent-danger); }
+.arch-node.handler { border-color: var(--accent-primary); color: var(--accent-primary); }
+.arch-node.frontend { border-color: var(--accent-secondary); color: var(--accent-secondary); }
+
+.arch-arrow {
+  color: #334155;
+  flex-shrink: 0;
+}
+
+.arch-desc {
+  font-size: 0.55rem;
+  color: var(--text-dim);
+  margin: 0;
+  text-align: center;
+  line-height: 1.5;
+  font-style: italic;
+}

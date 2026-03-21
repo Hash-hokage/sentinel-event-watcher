@@ -18,6 +18,7 @@ Unlike traditional smart contracts, the `SentinelHandler` inherits from `SomniaE
 Users register their monitoring intents in the registry. Each registration acts as a "Reactive Agent":
 *   **WALLET_WATCH:** Monitors specific EOA movements.
 *   **PRICE_ALERT:** Triggers when a price (monitored via the reactive BlockTick) crosses a threshold.
+*   **SYSTEM_HEALTH:** Monitors system-level health metrics.
 *   **BRIDGE_WATCH:** Intercepts cross-chain bridge events to secure assets in transit.
 
 ### 3. Tactical Command Dashboard (Frontend)
@@ -61,8 +62,17 @@ Sentinel integrates **Viem Session Accounts** to allow autonomous execution.
    ```
 3. **Deploy to Somnia Testnet:**
    ```bash
-   forge script script/DeploySomnia.s.sol --rpc-url https://api.infra.testnet.somnia.network --broadcast --gas-estimate-multiplier 200
-   ```
+    forge script script/DeploySomnia.s.sol --rpc-url https://api.infra.testnet.somnia.network --broadcast --gas-estimate-multiplier 200
+    ```
+
+### Deployed Contracts (Somnia Testnet — Chain ID 50312)
+| Contract | Address |
+|---|---|
+| SentinelRegistry | `0xeaf2c62c7486c10dac2a1afa31ebcb40759a6ed2` |
+| SentinelHandler | `0xe95d0a5ec446bf84117961d0ae3ccd2452c451d1` |
+| SentinelCore | `0x9FeD00Dc284464e66C996dF0fc3ee24e440ED660` |
+| MockPriceOracle | `0xf586CdD8386e5692b8AB7ef04572700d69eE533C` |
+| MockBridge | `0x7f75521779Ae4CDD3c5eC9fd33221B1E07073dfc` |
 
 ### Frontend (React + Vite)
 1. **Install Dependencies:**
@@ -76,7 +86,7 @@ Sentinel integrates **Viem Session Accounts** to allow autonomous execution.
 
 ---
 
-## 📊 V2 Tactical Dashboard Features
+## 📊 V3 Tactical Dashboard Features
 *   **Signal Intensity (Recharts):** Real-time visualization of incoming reactive signals.
 *   **Event Distribution:** Breakdown of alert types (Price, Wallet, Bridge).
 *   **Autonomous Agent Toggle:** Enable/Disable individual reactive agents on-the-fly.
