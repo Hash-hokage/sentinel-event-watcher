@@ -471,8 +471,16 @@ function App() {
                     <div className="sentinel-list">
                       {displaySentinels.map((s, idx) => (
                         <div key={idx} className={`sentinel-item ${s.isActive ? 'active' : 'inactive'}`}>
+                          <span className={`active-dot ${s.isActive ? '' : 'inactive'}`} />
                           <div className="s-info">
-                            <span className="s-type">{s.sType === 0 ? "WAL" : s.sType === 1 ? "PRI" : s.sType === 2 ? "SYS" : "BRG"}</span>
+                            <span className={`s-type badge ${
+                              s.sType === 0 ? 'badge-wallet' :
+                              s.sType === 1 ? 'badge-price' :
+                              s.sType === 2 ? 'badge-system' :
+                              'badge-bridge'
+                            }`}>
+                              {s.sType === 0 ? 'WAL' : s.sType === 1 ? 'PRI' : s.sType === 2 ? 'SYS' : 'BRG'}
+                            </span>
                             <div className="s-details">
                               <span className="s-target">{s.target.slice(0, 10)}...</span>
                               {s.actionTarget !== '0x0000000000000000000000000000000000000000' && (
@@ -526,7 +534,11 @@ function App() {
                         className={`log-entry ${ev.type.toLowerCase()}`}
                     >
                         <div className="log-meta">
-                        <span className="log-type">{ev.type}</span>
+                        <span className={`log-type ${
+                          ev.type === 'AUTO_REACTIVE_ACTION' ? 'type-auto' :
+                          ev.type === 'SESSION_TX_CONFIRMED' ? 'type-session' :
+                          'type-signal'
+                        }`}>{ev.type}</span>
                         <span className="log-time">{ev.time}</span>
                         {ev.blockNumber > 0 && (
                           <span className="log-block">⚡ block #{ev.blockNumber.toLocaleString()}</span>
