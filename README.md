@@ -3,6 +3,7 @@
 
 **Network:** Somnia Testnet (Chain ID: 50312)
 **Hackathon Track:** Native Reactivity
+**Live Dashboard:** [https://sentinel-nine-chi.vercel.app](https://sentinel-nine-chi.vercel.app)
 
 ---
 
