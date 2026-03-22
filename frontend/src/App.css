@@ -841,7 +841,220 @@ input::placeholder {
 .spin { animation: spin 3s linear infinite; }
 .pulse { animation: pulse 2s infinite; }
 
-/* ── Scrollbar ── */
 ::-webkit-scrollbar { width: 4px; }
 ::-webkit-scrollbar-track { background: var(--bg-primary); }
 ::-webkit-scrollbar-thumb { background: var(--border-default); border-radius: 2px; }
+
+/* ── TABLET (≤1024px) ── */
+@media (max-width: 1024px) {
+
+  /* Shrink sidebar */
+  .control-panel {
+    width: 220px;
+    padding: 12px;
+  }
+
+  .dashboard-grid.large {
+    grid-template-columns: 220px 1fr;
+  }
+
+  /* Shrink visuals panel */
+  .main-content-split {
+    grid-template-columns: 1fr 200px;
+  }
+
+  /* Compress navbar chips */
+  .addr-pill {
+    font-size: 9px;
+    padding: 3px 7px;
+  }
+
+  /* Reduce chart heights */
+  .chart-body .recharts-responsive-container {
+    height: 100px !important;
+  }
+}
+
+/* ── MOBILE (≤768px) ── */
+@media (max-width: 768px) {
+
+  /* Allow vertical scroll on mobile */
+  body {
+    overflow: auto;
+  }
+
+  .sentinel-root {
+    height: auto;
+    min-height: 100vh;
+  }
+
+  /* Stack the entire dashboard vertically */
+  .dashboard-grid.large {
+    display: flex;
+    flex-direction: column;
+    grid-template-columns: none;
+  }
+
+  /* Sidebar becomes full width horizontal strip */
+  .control-panel {
+    width: 100%;
+    border-right: none;
+    border-bottom: 1px solid #1a2332;
+    padding: 12px;
+    gap: 10px;
+    overflow-y: visible;
+  }
+
+  /* Stack sidebar sections horizontally and allow scroll */
+  .control-panel > * {
+    flex-shrink: 0;
+  }
+
+  /* Make the main content split stack vertically */
+  .main-content-split {
+    display: flex;
+    flex-direction: column;
+    grid-template-columns: none;
+    overflow: visible;
+  }
+
+  /* Feed container allows scroll */
+  .feed-container {
+    overflow: visible;
+  }
+
+  /* Visuals panel goes below the log window */
+  .visuals-panel {
+    width: 100%;
+    border-left: none;
+    border-top: 1px solid #1a2332;
+    padding: 12px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    overflow: visible;
+  }
+
+  /* Architecture card and on-chain stats span full width */
+  .architecture-card,
+  .on-chain-stats {
+    grid-column: 1 / -1;
+  }
+
+  /* Navbar: stack on mobile */
+  .navbar {
+    height: auto;
+    flex-direction: column;
+    align-items: flex-start;
+    padding: 10px 12px;
+    gap: 8px;
+  }
+
+  .nav-actions {
+    width: 100%;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  .system-links {
+    flex-wrap: wrap;
+    gap: 4px;
+  }
+
+  /* Hide ORC chip on very small screens to save space */
+  .addr-pill:last-of-type {
+    display: none;
+  }
+
+  /* Logo smaller on mobile */
+  .nav-logo {
+    height: 28px;
+  }
+
+  /* Feed header wraps */
+  .feed-header {
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 10px 12px;
+  }
+
+  /* Log window takes full height it needs */
+  .log-window {
+    max-height: 300px;
+    overflow-y: auto;
+  }
+
+  /* Arch flow wraps on mobile */
+  .arch-flow {
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+
+  .arch-arrow {
+    display: none;
+  }
+
+  /* Stat grid stays 3 columns but smaller */
+  .stat-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+
+  .stat-value {
+    font-size: 13px;
+  }
+
+  /* Footer wraps */
+  .system-footer {
+    height: auto;
+    flex-wrap: wrap;
+    padding: 8px 12px;
+    gap: 8px 16px;
+  }
+
+  /* Form inputs full width */
+  .add-sentinel-form input,
+  .add-sentinel-form select {
+    font-size: 12px;
+  }
+
+  /* Sentinel list manageable height */
+  .sentinel-list {
+    max-height: 120px;
+    overflow-y: auto;
+  }
+
+  /* Watch button full width */
+  .watch-btn {
+    width: 100%;
+  }
+}
+
+/* ── SMALL MOBILE (≤480px) ── */
+@media (max-width: 480px) {
+
+  /* Visuals panel single column on small phones */
+  .visuals-panel {
+    grid-template-columns: 1fr;
+  }
+
+  /* Hide signal intensity chart on very small screens */
+  .chart-card:first-of-type {
+    display: none;
+  }
+
+  /* Stat grid 2 columns */
+  .stat-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  /* Footer items font size */
+  .footer-item {
+    font-size: 9px;
+  }
+
+  /* Event log type badge wraps */
+  .log-meta {
+    flex-wrap: wrap;
+    gap: 4px;
+  }
+}
