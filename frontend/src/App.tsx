@@ -4,9 +4,10 @@ import { SDK } from '@somnia-chain/reactivity';
 import { createSessionClient } from '@somnia-chain/viem-session-account';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
-  Shield, Radio, Activity, Wallet, Terminal, 
+  Radio, Activity, Wallet, Terminal, 
   Cpu, Globe, Plus, Power, Key, Zap, BarChart3, TrendingUp, RefreshCw, ArrowRight 
 } from 'lucide-react';
+import sentinelLogo from './assets/sentinel_logo.svg';
 import { 
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, 
   ResponsiveContainer, BarChart, Bar, Cell 
@@ -423,8 +424,7 @@ function App() {
 
       <nav className="navbar">
         <div className="brand">
-          <Shield className="logo-icon" size={24} />
-          <span className="brand-text">SENTINEL<span>AUTOMATION</span></span>
+          <img src={sentinelLogo} alt="Sentinel Automation" className="nav-logo" />
         </div>
         <div className="nav-actions">
           <div className="system-links">

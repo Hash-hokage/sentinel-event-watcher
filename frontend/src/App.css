@@ -78,16 +78,10 @@ body {
   gap: 8px;
 }
 
-.brand-text {
-  font-weight: 700;
-  font-size: 13px;
-  letter-spacing: 2px;
-  color: var(--text-primary);
-}
-
-.brand-text span {
-  color: var(--accent-blue);
-  font-weight: 400;
+.nav-logo {
+  height: 40px;
+  width: auto;
+  display: block;
 }
 
 .logo-icon {

@@ -1,0 +1,27 @@
+<svg viewBox="0 0 400 300" xmlns="http://www.w3.org/2000/svg">
+  <path d="M200 48 L240 64 L240 112 Q240 142 200 160 Q160 142 160 112 L160 64 Z" fill="none" stroke="#00ff9d" stroke-width="2" opacity="0.9"/>
+  <path d="M200 54 L236 68 L236 112 Q236 138 200 154 Q164 138 164 112 L164 68 Z" fill="#0d1117"/>
+  <circle cx="200" cy="108" r="16" fill="none" stroke="#00ff9d" stroke-width="1.5" opacity="0.9"/>
+  <circle cx="200" cy="108" r="8" fill="#00ff9d" opacity="0.12"/>
+  <circle cx="200" cy="108" r="4" fill="#00ff9d"/>
+  <line x1="200" y1="86" x2="200" y2="92" stroke="#00ff9d" stroke-width="1.2" opacity="0.7"/>
+  <line x1="200" y1="124" x2="200" y2="130" stroke="#00ff9d" stroke-width="1.2" opacity="0.7"/>
+  <line x1="178" y1="108" x2="184" y2="108" stroke="#00ff9d" stroke-width="1.2" opacity="0.7"/>
+  <line x1="216" y1="108" x2="222" y2="108" stroke="#00ff9d" stroke-width="1.2" opacity="0.7"/>
+  <path d="M168 82 Q152 108 168 134" fill="none" stroke="#4a9eff" stroke-width="1.2" opacity="0.55" stroke-linecap="round"/>
+  <path d="M160 74 Q138 108 160 142" fill="none" stroke="#4a9eff" stroke-width="0.8" opacity="0.28" stroke-linecap="round"/>
+  <path d="M232 82 Q248 108 232 134" fill="none" stroke="#4a9eff" stroke-width="1.2" opacity="0.55" stroke-linecap="round"/>
+  <path d="M240 74 Q262 108 240 142" fill="none" stroke="#4a9eff" stroke-width="0.8" opacity="0.28" stroke-linecap="round"/>
+  <circle cx="200" cy="48" r="2.5" fill="#00ff9d"/>
+  <circle cx="200" cy="160" r="2.5" fill="#00ff9d" opacity="0.7"/>
+  <circle cx="240" cy="64" r="2" fill="#00ff9d" opacity="0.5"/>
+  <circle cx="160" cy="64" r="2" fill="#00ff9d" opacity="0.5"/>
+  <text x="200" y="192" text-anchor="middle" font-family="'JetBrains Mono','Courier New',monospace" font-size="24" font-weight="700" fill="#00ff9d" letter-spacing="6">SENTINEL</text>
+  <text x="200" y="212" text-anchor="middle" font-family="'JetBrains Mono','Courier New',monospace" font-size="10" font-weight="400" fill="#4a9eff" letter-spacing="7" opacity="0.9">AUTOMATION</text>
+  <line x1="126" y1="222" x2="274" y2="222" stroke="#1a2332" stroke-width="1"/>
+  <text x="200" y="237" text-anchor="middle" font-family="'JetBrains Mono','Courier New',monospace" font-size="7.5" fill="#3a6a9a" letter-spacing="2.5">REACTIVE INTELLIGENCE ON-CHAIN</text>
+  <path d="M18 18 L18 30 M18 18 L30 18" fill="none" stroke="#1e2d3d" stroke-width="1.5"/>
+  <path d="M382 18 L382 30 M382 18 L370 18" fill="none" stroke="#1e2d3d" stroke-width="1.5"/>
+  <path d="M18 282 L18 270 M18 282 L30 282" fill="none" stroke="#1e2d3d" stroke-width="1.5"/>
+  <path d="M382 282 L382 270 M382 282 L370 282" fill="none" stroke="#1e2d3d" stroke-width="1.5"/>
+</svg>
