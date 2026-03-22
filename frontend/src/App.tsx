@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
-import { createPublicClient, createWalletClient, custom, http, defineChain, formatEther, parseEther, toHex } from 'viem';
+import { createPublicClient, createWalletClient, custom, http, defineChain, formatEther, toHex } from 'viem';
 import { SDK } from '@somnia-chain/reactivity';
 import { createSessionClient } from '@somnia-chain/viem-session-account';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -32,7 +32,6 @@ const somniaTestnet = defineChain({
 const REGISTRY_ADDRESS = '0xeaf2c62c7486c10dac2a1afa31ebcb40759a6ed2';
 const HANDLER_ADDRESS = '0xe95d0a5ec446bf84117961d0ae3ccd2452c451d1';
 const ORACLE_ADDRESS = '0xf586CdD8386e5692b8AB7ef04572700d69eE533C';
-const CORE_SENTINEL = '0x9FeD00Dc284464e66C996dF0fc3ee24e440ED660';
 const BRIDGE_ADDRESS = '0x7f75521779Ae4CDD3c5eC9fd33221B1E07073dfc';
 
 const REGISTRY_ABI = [
@@ -90,6 +89,7 @@ function App() {
   const [newType, setNewType] = useState(0);
   const [actionTarget, setActionTarget] = useState('');
   const [actionData, setActionData] = useState('0x');
+  const [isDeploying, setIsDeploying] = useState(false);
 
   // On-Chain Reactivity Stats
   const [reactiveCallCount, setReactiveCallCount] = useState<bigint>(0n);
@@ -229,26 +229,37 @@ function App() {
       return;
     }
     if (!account) return;
-    const walletClient = createWalletClient({ chain: somniaTestnet, transport: custom(window.ethereum) });
+    const walletClient = createWalletClient({ 
+      chain: somniaTestnet, 
+      transport: custom(window.ethereum) 
+    });
+    setIsDeploying(true);
     try {
-        const { request } = await publicClient.simulateContract({
-            address: REGISTRY_ADDRESS as `0x${string}`,
-            abi: REGISTRY_ABI,
-            functionName: 'registerSentinel',
-            args: [
-                newType, 
-                newTarget as `0x${string}`, 
-                BigInt(newThreshold || '0'), 
-                (actionTarget || '0x0000000000000000000000000000000000000000') as `0x${string}`, 
-                (actionData || '0x') as `0x${string}`
-            ],
-            account
-        });
-        const hash = await walletClient.writeContract(request);
-        await publicClient.waitForTransactionReceipt({ hash });
-        fetchSentinels();
+      const { request } = await publicClient.simulateContract({
+        address: REGISTRY_ADDRESS as `0x${string}`,
+        abi: REGISTRY_ABI,
+        functionName: 'registerSentinel',
+        args: [
+          newType,
+          newTarget as `0x${string}`,
+          BigInt(newThreshold || '0'),
+          (actionTarget || '0x0000000000000000000000000000000000000000') as `0x${string}`,
+          (actionData || '0x') as `0x${string}`
+        ],
+        account
+      });
+      const hash = await walletClient.writeContract(request);
+      await publicClient.waitForTransactionReceipt({ hash });
+      setNewTarget('');
+      setNewThreshold('');
+      setActionTarget('');
+      setActionData('0x');
+      fetchSentinels();
+      fetchAllSentinels();
     } catch (err) {
-        console.error(err);
+      console.error(err);
+    } finally {
+      setIsDeploying(false);
     }
   };
 
@@ -497,7 +508,18 @@ function App() {
             <input type="text" placeholder="Action Target" value={actionTarget} onChange={(e) => setActionTarget(e.target.value)} />
             <input type="text" placeholder="Call Data" value={actionData} onChange={(e) => setActionData(e.target.value)} />
             
-            <button onClick={registerNewSentinel} className="primary-btn full-width"><Plus size={16} /> DEPLOY_AGENT</button>
+            <button 
+              onClick={registerNewSentinel} 
+              className="primary-btn full-width"
+              disabled={isDeploying}
+              style={{ opacity: isDeploying ? 0.7 : 1, cursor: isDeploying ? 'not-allowed' : 'pointer' }}
+            >
+              {isDeploying ? (
+                <><RefreshCw size={16} className="spin" /> DEPLOYING...</>
+              ) : (
+                <><Plus size={16} /> DEPLOY_AGENT</>
+              )}
+            </button>
           </div>
 
           <div className="my-sentinels">
@@ -653,7 +675,10 @@ function App() {
                     </div>
                     <div className="status-item">
                         <span>ACTIVE_REACTIVE_THREADS</span>
-                        <span className="val">{mySentinels.filter(s => s.isActive).length}</span>
+                        <span className="val">
+                          {(mySentinels.length > 0 ? mySentinels : allSentinels)
+                            .filter(s => s.isActive).length}
+                        </span>
                     </div>
                 </div>
 
