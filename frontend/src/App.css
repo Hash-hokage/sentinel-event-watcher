@@ -598,6 +598,9 @@ input::placeholder {
 .type-auto { color: var(--accent-green); }
 .type-session { color: #f59e0b; }
 .type-signal { color: var(--accent-blue); }
+.type-price { color: #ffaa00; }
+.type-bridge { color: #a060ff; }
+.type-agent { color: #00cc66; }
 
 .log-time {
   font-size: 9px;

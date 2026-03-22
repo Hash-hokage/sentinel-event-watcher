@@ -32,6 +32,7 @@ const REGISTRY_ADDRESS = '0xeaf2c62c7486c10dac2a1afa31ebcb40759a6ed2';
 const HANDLER_ADDRESS = '0xe95d0a5ec446bf84117961d0ae3ccd2452c451d1';
 const ORACLE_ADDRESS = '0xf586CdD8386e5692b8AB7ef04572700d69eE533C';
 const CORE_SENTINEL = '0x9FeD00Dc284464e66C996dF0fc3ee24e440ED660';
+const BRIDGE_ADDRESS = '0x7f75521779Ae4CDD3c5eC9fd33221B1E07073dfc';
 
 const REGISTRY_ABI = [
     "function registerSentinel(uint8 sType, address target, uint256 threshold, address actionTarget, bytes actionData) external returns (uint256)",
@@ -69,7 +70,7 @@ interface EventLog {
 }
 
 function App() {
-  const [registryAddress, setRegistryAddress] = useState(REGISTRY_ADDRESS);
+
   const [isConnected, setIsConnected] = useState(false);
   const [account, setAccount] = useState<`0x${string}`>();
   const [mySentinels, setMySentinels] = useState<SentinelConfig[]>([]);
@@ -136,6 +137,14 @@ function App() {
     return Object.entries(counts).map(([name, value]) => ({ name, value }));
   }, [events]);
 
+  const avgLatencyMs = useMemo(() => {
+    if (events.length < 2) return null;
+    const recent = events.slice(0, 5);
+    const gaps = recent.slice(0, -1).map((ev, i) => recent[i].receivedAt - recent[i + 1].receivedAt);
+    const avg = gaps.reduce((a, b) => a + b, 0) / gaps.length;
+    return Math.round(Math.abs(avg));
+  }, [events]);
+
   const copyToClipboard = (label: string, value: string) => {
     navigator.clipboard.writeText(value).catch(() => {});
     setCopiedChip(label);
@@ -143,11 +152,22 @@ function App() {
   };
 
   const connectWallet = async () => {
-    if (window.ethereum) {
+    if (!window.ethereum) {
+      alert('No wallet detected. Please install MetaMask.');
+      return;
+    }
+    try {
       const walletClient = createWalletClient({ chain: somniaTestnet, transport: custom(window.ethereum) });
       const [address] = await walletClient.requestAddresses();
+      const chainId = await walletClient.getChainId();
+      if (chainId !== 50312) {
+        alert('Wrong network. Please switch to Somnia Testnet (Chain ID: 50312) in MetaMask and try again.');
+        return;
+      }
       setAccount(address);
       setIsConnected(true);
+    } catch (err) {
+      console.error('Wallet connect error:', err);
     }
   };
 
@@ -169,10 +189,10 @@ function App() {
   };
 
   const fetchSentinels = async () => {
-    if (!account || !registryAddress) return;
+    if (!account) return;
     try {
         const ids = await publicClient.readContract({
-            address: registryAddress as `0x${string}`,
+            address: REGISTRY_ADDRESS as `0x${string}`,
             abi: REGISTRY_ABI,
             functionName: 'getUserSentinels',
             args: [account]
@@ -180,7 +200,7 @@ function App() {
 
         const configs = await Promise.all(ids.map(async (id: bigint) => {
             const data = await publicClient.readContract({
-                address: registryAddress as `0x${string}`,
+                address: REGISTRY_ADDRESS as `0x${string}`,
                 abi: REGISTRY_ABI,
                 functionName: 'sentinels',
                 args: [id]
@@ -203,11 +223,15 @@ function App() {
   };
 
   const registerNewSentinel = async () => {
-    if (!account || !registryAddress) return;
-    const walletClient = createWalletClient({ chain: somniaTestnet, transport: custom(window.ethereum!) });
+    if (!window.ethereum) {
+      console.error('No wallet detected. Please install MetaMask.');
+      return;
+    }
+    if (!account) return;
+    const walletClient = createWalletClient({ chain: somniaTestnet, transport: custom(window.ethereum) });
     try {
         const { request } = await publicClient.simulateContract({
-            address: registryAddress as `0x${string}`,
+            address: REGISTRY_ADDRESS as `0x${string}`,
             abi: REGISTRY_ABI,
             functionName: 'registerSentinel',
             args: [
@@ -228,11 +252,15 @@ function App() {
   };
 
   const toggleSentinel = async (id: bigint) => {
-      if (!account || !registryAddress) return;
-      const walletClient = createWalletClient({ chain: somniaTestnet, transport: custom(window.ethereum!) });
+      if (!window.ethereum) {
+        console.error('No wallet detected. Please install MetaMask.');
+        return;
+      }
+      if (!account) return;
+      const walletClient = createWalletClient({ chain: somniaTestnet, transport: custom(window.ethereum) });
       try {
           const { request } = await publicClient.simulateContract({
-              address: registryAddress as `0x${string}`,
+              address: REGISTRY_ADDRESS as `0x${string}`,
               abi: REGISTRY_ABI,
               functionName: 'toggleSentinel',
               args: [id],
@@ -299,7 +327,11 @@ function App() {
 
   useEffect(() => {
     fetchOnChainStats();
-    const interval = setInterval(fetchOnChainStats, 8000);
+    const interval = setInterval(() => {
+      if (!document.hidden) {
+        fetchOnChainStats();
+      }
+    }, 8000);
     return () => clearInterval(interval);
   }, [fetchOnChainStats]);
 
@@ -308,9 +340,9 @@ function App() {
   }, []);
 
   useEffect(() => {
-    if (isConnected && registryAddress) fetchSentinels();
+    if (isConnected) fetchSentinels();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isConnected, registryAddress, account]);
+  }, [isConnected, account]);
 
   useEffect(() => {
     if (!isWatching) return;
@@ -335,6 +367,12 @@ function App() {
           id: Date.now(),
           type: matchedSentinel?.actionTarget !== '0x0000000000000000000000000000000000000000'
             ? 'AUTO_REACTIVE_ACTION'
+            : emitter === ORACLE_ADDRESS.toLowerCase()
+            ? 'PRICE_SIGNAL'
+            : emitter === BRIDGE_ADDRESS.toLowerCase()
+            ? 'BRIDGE_SIGNAL'
+            : emitter === REGISTRY_ADDRESS.toLowerCase()
+            ? 'AGENT_REGISTERED'
             : 'REACTIVE_SIGNAL',
           msg: `Signal from ${emitter.slice(0, 10)}... ${
             matchedSentinel?.actionTarget !== '0x0000000000000000000000000000000000000000'
@@ -537,6 +575,9 @@ function App() {
                         <span className={`log-type ${
                           ev.type === 'AUTO_REACTIVE_ACTION' ? 'type-auto' :
                           ev.type === 'SESSION_TX_CONFIRMED' ? 'type-session' :
+                          ev.type === 'PRICE_SIGNAL' ? 'type-price' :
+                          ev.type === 'BRIDGE_SIGNAL' ? 'type-bridge' :
+                          ev.type === 'AGENT_REGISTERED' ? 'type-agent' :
                           'type-signal'
                         }`}>{ev.type}</span>
                         <span className="log-time">{ev.time}</span>
@@ -605,8 +646,10 @@ function App() {
                         <span className="val green">SOMNIA_TESTNET</span>
                     </div>
                     <div className="status-item">
-                        <span>LATENCY</span>
-                        <span className="val">12ms</span>
+                        <span>SIGNAL_GAP</span>
+                        <span className="val">
+                          {avgLatencyMs !== null ? `${avgLatencyMs}ms` : 'MEASURING...'}
+                        </span>
                     </div>
                     <div className="status-item">
                         <span>ACTIVE_REACTIVE_THREADS</span>
