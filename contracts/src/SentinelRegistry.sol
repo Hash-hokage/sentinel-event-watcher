@@ -128,12 +128,14 @@ contract SentinelRegistry {
         });
 
         userSentinelIds[msg.sender].push(id);
+        
+        bool wasAlreadyRegistered = isTargetRegistered[target];
         isTargetRegistered[target] = true;
 
         emit SentinelCreated(id, msg.sender, sType, target, threshold);
 
-        // Auto-subscribe the handler to the new target's events
-        if (address(handler) != address(0)) {
+        // Auto-subscribe the handler ONLY if this is a brand new target
+        if (address(handler) != address(0) && !wasAlreadyRegistered) {
             handler.subscribeToEmitter(target);
         }
     }

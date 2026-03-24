@@ -1,9 +1,9 @@
 {
   "network": "Somnia Testnet",
   "chainId": 50312,
-  "deployedAt": "2026-03-19T21:00:00Z",
+  "deployedAt": "2026-03-24T14:00:00Z",
   "contracts": {
-    "SentinelRegistry": "0xeaf2c62c7486c10dac2a1afa31ebcb40759a6ed2",
+    "SentinelRegistry": "0x3E6732Debfba510CF2a9fb3EE5C9d7D95c1f938B",
     "SentinelHandler": "0xe95d0a5ec446bf84117961d0ae3ccd2452c451d1",
     "SentinelCore": "0x9FeD00Dc284464e66C996dF0fc3ee24e440ED660",
     "MockPriceOracle": "0xf586CdD8386e5692b8AB7ef04572700d69eE533C",
