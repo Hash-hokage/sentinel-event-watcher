@@ -359,6 +359,7 @@ function App() {
   useEffect(() => {
     if (!isWatching) return;
     let subscription: any;
+    let isMounted = true;
 
     const systemSources = [HANDLER_ADDRESS, REGISTRY_ADDRESS, ORACLE_ADDRESS];
     const userTargets = mySentinels
@@ -370,6 +371,7 @@ function App() {
       eventContractSources: allSources,
       ethCalls: [],
       onData: async (data) => {
+        if (!isMounted) return;
         const emitter = data.result.emitter.toLowerCase();
         const matchedSentinel = mySentinels.find(
           s => s.isActive && s.target.toLowerCase() === emitter
@@ -423,9 +425,28 @@ function App() {
           }
         }
       },
-    }).then(sub => (subscription = sub));
+    }).then(sub => {
+      if (!isMounted) {
+        if (typeof sub === 'function') {
+          sub();
+        } else if (sub && typeof sub.unsubscribe === 'function') {
+          sub.unsubscribe();
+        }
+        return;
+      }
+      subscription = sub;
+    });
 
-    return () => subscription?.unsubscribe();
+    return () => {
+      isMounted = false;
+      if (subscription) {
+        if (typeof subscription === 'function') {
+          subscription();
+        } else if (typeof subscription.unsubscribe === 'function') {
+          subscription.unsubscribe();
+        }
+      }
+    };
   }, [isWatching, mySentinels, sdk, sessionClient]);
 
   return (
