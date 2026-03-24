@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
-import { createPublicClient, createWalletClient, custom, http, defineChain, formatEther, toHex } from 'viem';
+import { createPublicClient, createWalletClient, custom, http, defineChain, formatEther, toHex, parseAbi } from 'viem';
 import { SDK } from '@somnia-chain/reactivity';
 import { createSessionClient } from '@somnia-chain/viem-session-account';
 import { motion, AnimatePresence } from 'framer-motion';
