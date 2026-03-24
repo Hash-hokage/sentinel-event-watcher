@@ -34,19 +34,19 @@ const HANDLER_ADDRESS = '0xe95d0a5ec446bf84117961d0ae3ccd2452c451d1';
 const ORACLE_ADDRESS = '0xf586CdD8386e5692b8AB7ef04572700d69eE533C';
 const BRIDGE_ADDRESS = '0x7f75521779Ae4CDD3c5eC9fd33221B1E07073dfc';
 
-const REGISTRY_ABI = [
+const REGISTRY_ABI = parseAbi([
     "function registerSentinel(uint8 sType, address target, uint256 threshold, address actionTarget, bytes actionData) external returns (uint256)",
     "function getUserSentinels(address user) external view returns (uint256[] memory)",
     "function sentinels(uint256) external view returns (address owner, uint8 sType, address target, uint256 threshold, bool isActive, address actionTarget, bytes actionData)",
     "function toggleSentinel(uint256 id) external",
     "event SentinelCreated(uint256 indexed id, address indexed owner, uint8 indexed sType, address target, uint256 threshold)"
-] as const;
+]);
 
-const HANDLER_ABI = [
+const HANDLER_ABI = parseAbi([
     "function reactiveCallCount() external view returns (uint256)",
     "function priceAlertsProcessed() external view returns (uint256)",
     "function blockTickSubId() external view returns (uint256)",
-] as const;
+]);
 
 interface SentinelConfig {
     id: bigint;
