@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
-import { createPublicClient, createWalletClient, custom, http, defineChain, formatEther, toHex, parseAbi } from 'viem';
+import { createPublicClient, createWalletClient, custom, http, defineChain, formatEther, parseEther, toHex, parseAbi } from 'viem';
 import { SDK } from '@somnia-chain/reactivity';
 import { createSessionClient } from '@somnia-chain/viem-session-account';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -286,6 +286,30 @@ function App() {
     }
   };
 
+  const fundSession = async () => {
+    if (!window.ethereum || !sessionClient || !account) return;
+    try {
+      const walletClient = createWalletClient({
+        chain: somniaTestnet,
+        transport: custom(window.ethereum),
+      });
+      const gasPrice = await publicClient.getGasPrice();
+      const hash = await walletClient.sendTransaction({
+        account,
+        to: sessionClient.account.address,
+        value: parseEther('0.01'),
+        gasPrice: gasPrice * 2n,
+      });
+      await publicClient.waitForTransactionReceipt({ hash });
+      const bal = await publicClient.getBalance({
+        address: sessionClient.account.address,
+      });
+      setSessionBalance(formatEther(bal));
+    } catch (err) {
+      console.error('Fund session error:', err);
+    }
+  };
+
   const fetchSentinels = async () => {
     if (!account) return;
     try {
@@ -503,9 +527,12 @@ function App() {
           sessionClient
         ) {
           try {
+            const gasPrice = await publicClient.getGasPrice();
             const hash = await sessionClient.sendTransaction({
               to: matchedSentinel.actionTarget,
               data: matchedSentinel.actionData,
+              gasPrice: gasPrice * 2n,
+              gas: 200000n,
             });
             const actionEvent: EventLog = {
               id: Date.now() + 1,
@@ -608,7 +635,16 @@ function App() {
             <p className="session-disclaimer">
               ⚠ Auto-generated throwaway key — never enter your real wallet seed
             </p>
-            {sessionClient && <p className="session-addr">{sessionClient.account.address}</p>}
+            {sessionClient && (
+              <div className="session-addr-row" style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '6px' }}>
+                <p className="session-addr" style={{ margin: 0, flex: 1, wordBreak: 'break-all' }}>
+                  {sessionClient.account.address}
+                </p>
+                <button onClick={fundSession} className="session-btn" title="Send 0.01 STT to session key">
+                  FUND
+                </button>
+              </div>
+            )}
           </div>
 
           <div className="add-sentinel-form">
