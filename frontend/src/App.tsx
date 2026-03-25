@@ -29,10 +29,10 @@ const somniaTestnet = defineChain({
   }
 });
 
-const REGISTRY_ADDRESS = '0x3E6732Debfba510CF2a9fb3EE5C9d7D95c1f938B';
-const HANDLER_ADDRESS = '0xe95d0a5ec446bf84117961d0ae3ccd2452c451d1';
-const ORACLE_ADDRESS = '0xf586CdD8386e5692b8AB7ef04572700d69eE533C';
-const BRIDGE_ADDRESS = '0x7f75521779Ae4CDD3c5eC9fd33221B1E07073dfc';
+const REGISTRY_ADDRESS: `0x${string}` = '0x3E6732Debfba510CF2a9fb3EE5C9d7D95c1f938B';
+const HANDLER_ADDRESS: `0x${string}` = '0xe95d0a5ec446bf84117961d0ae3ccd2452c451d1';
+const ORACLE_ADDRESS: `0x${string}` = '0xf586CdD8386e5692b8AB7ef04572700d69eE533C';
+const BRIDGE_ADDRESS: `0x${string}` = '0x7f75521779Ae4CDD3c5eC9fd33221B1E07073dfc';
 
 const REGISTRY_ABI = parseAbi([
     "function registerSentinel(uint8 sType, address target, uint256 threshold, address actionTarget, bytes actionData) external returns (uint256)",
@@ -208,7 +208,7 @@ function App() {
   const avgLatencyMs = useMemo(() => {
     if (events.length < 2) return null;
     const recent = events.slice(0, 5);
-    const gaps = recent.slice(0, -1).map((ev, i) => recent[i].receivedAt - recent[i + 1].receivedAt);
+    const gaps = recent.slice(0, -1).map((_, i) => recent[i].receivedAt - recent[i + 1].receivedAt);
     const avg = gaps.reduce((a, b) => a + b, 0) / gaps.length;
     return Math.round(Math.abs(avg));
   }, [events]);
@@ -311,6 +311,19 @@ function App() {
           } else {
             throw switchError;
           }
+        }
+        // Poll until MetaMask has fully propagated the chain switch
+        let attempts = 0;
+        while (attempts < 20) {
+          const confirmedChainId = await window.ethereum.request({ method: 'eth_chainId' });
+          if (parseInt(confirmedChainId, 16) === 50312) break;
+          await new Promise(r => setTimeout(r, 200));
+          attempts++;
+        }
+        const finalChainId = await window.ethereum.request({ method: 'eth_chainId' });
+        if (parseInt(finalChainId, 16) !== 50312) {
+          console.error('Chain switch did not complete in time');
+          return;
         }
       }
       const walletClient = createWalletClient({
@@ -510,7 +523,7 @@ function App() {
     const userTargets = mySentinels
       .filter(s => s.isActive)
       .map(s => s.target);
-    const allSources = [...new Set([...systemSources, ...userTargets])];
+    const allSources = [...new Set([...systemSources, ...userTargets])] as `0x${string}`[];
 
     sdk.subscribe({
       eventContractSources: allSources,
@@ -552,7 +565,7 @@ function App() {
         ) {
           try {
             const gasPrice = await publicClient.getGasPrice();
-            const hash = await sessionClient.sendTransaction({
+            await sessionClient.sendTransaction({
               to: matchedSentinel.actionTarget,
               data: matchedSentinel.actionData,
               gasPrice: gasPrice * 2n,
@@ -574,25 +587,20 @@ function App() {
         }
       },
     }).then(sub => {
+      if (sub instanceof Error) return;
       if (!isMounted) {
-        if (typeof sub === 'function') {
-          sub();
-        } else if (sub && typeof sub.unsubscribe === 'function') {
-          sub.unsubscribe();
-        }
-        return;
+      if (sub && 'unsubscribe' in sub && typeof sub.unsubscribe === 'function') {
+        sub.unsubscribe();
+      }
+      return;
       }
       subscription = sub;
     });
 
     return () => {
       isMounted = false;
-      if (subscription) {
-        if (typeof subscription === 'function') {
-          subscription();
-        } else if (typeof subscription.unsubscribe === 'function') {
-          subscription.unsubscribe();
-        }
+      if (subscription && !(subscription instanceof Error) && 'unsubscribe' in subscription && typeof subscription.unsubscribe === 'function') {
+        subscription.unsubscribe();
       }
     };
   }, [isWatching, mySentinels, sdk, sessionClient]);
@@ -831,7 +839,7 @@ function App() {
                                     contentStyle={{ background: '#0f172a', border: '1px solid #1e293b', fontSize: '10px' }}
                                 />
                                 <Bar dataKey="value">
-                                    {typeStats.map((entry, index) => (
+                                    {typeStats.map((_, index) => (
                                         <Cell key={`cell-${index}`} fill={index % 2 === 0 ? '#38bdf8' : '#10b981'} />
                                     ))}
                                 </Bar>
