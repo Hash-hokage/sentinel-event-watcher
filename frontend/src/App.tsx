@@ -119,6 +119,73 @@ function App() {
 
   const sdk = useMemo(() => new SDK({ public: publicClient }), [publicClient]);
 
+  // FIX 2: Auto-Reconnect on Page Load
+  useEffect(() => {
+    const autoReconnect = async () => {
+      if (!window.ethereum) return;
+      try {
+        const accounts = await window.ethereum.request({ method: 'eth_accounts' }) as string[];
+        if (accounts.length > 0) {
+          try {
+            await window.ethereum.request({
+              method: 'wallet_switchEthereumChain',
+              params: [{ chainId: '0xC478' }],
+            });
+          } catch (switchError: any) {
+            if (switchError.code === 4902) {
+              await window.ethereum.request({
+                method: 'wallet_addEthereumChain',
+                params: [
+                  {
+                    chainId: '0xC478',
+                    chainName: 'Somnia Testnet',
+                    nativeCurrency: { name: 'STT', symbol: 'STT', decimals: 18 },
+                    rpcUrls: ['https://api.infra.testnet.somnia.network'],
+                    blockExplorerUrls: ['https://shannon-explorer.somnia.network'],
+                  },
+                ],
+              });
+            }
+          }
+          setAccount(accounts[0] as `0x${string}`);
+          setIsConnected(true);
+        }
+      } catch (err) {
+        // Return silently on page load
+      }
+    };
+    autoReconnect();
+  }, []);
+
+  // FIX 3: MetaMask Event Listeners for accountsChanged and chainChanged
+  useEffect(() => {
+    if (!window.ethereum) return;
+
+    const handleAccountsChanged = (accounts: string[]) => {
+      if (accounts.length === 0) {
+        setIsConnected(false);
+        setAccount(undefined);
+        setMySentinels([]);
+        setSessionClient(null);
+      } else {
+        setAccount(accounts[0] as `0x${string}`);
+        setIsConnected(true);
+      }
+    };
+
+    const handleChainChanged = () => {
+      window.location.reload();
+    };
+
+    window.ethereum.on('accountsChanged', handleAccountsChanged);
+    window.ethereum.on('chainChanged', handleChainChanged);
+
+    return () => {
+      window.ethereum.removeListener('accountsChanged', handleAccountsChanged);
+      window.ethereum.removeListener('chainChanged', handleChainChanged);
+    };
+  }, []);
+
   // Chart Data Computation
   const chartData = useMemo(() => {
     const last20 = [...events].reverse().slice(-20);
@@ -160,15 +227,45 @@ function App() {
     try {
       const walletClient = createWalletClient({ chain: somniaTestnet, transport: custom(window.ethereum) });
       const [address] = await walletClient.requestAddresses();
-      const chainId = await walletClient.getChainId();
-      if (chainId !== 50312) {
-        alert('Wrong network. Please switch to Somnia Testnet (Chain ID: 50312) in MetaMask and try again.');
-        return;
+      
+      try {
+        await window.ethereum.request({
+          method: 'wallet_switchEthereumChain',
+          params: [{ chainId: '0xC478' }],
+        });
+      } catch (switchError: any) {
+        if (switchError.code === 4902) {
+          await window.ethereum.request({
+            method: 'wallet_addEthereumChain',
+            params: [
+              {
+                chainId: '0xC478',
+                chainName: 'Somnia Testnet',
+                nativeCurrency: { name: 'STT', symbol: 'STT', decimals: 18 },
+                rpcUrls: ['https://api.infra.testnet.somnia.network'],
+                blockExplorerUrls: ['https://shannon-explorer.somnia.network'],
+              },
+            ],
+          });
+        } else {
+          throw switchError;
+        }
       }
-      setAccount(address);
-      setIsConnected(true);
-    } catch (err) {
+
+      const chainId = await walletClient.getChainId();
+      if (chainId === 50312) {
+        setAccount(address);
+        setIsConnected(true);
+      }
+    } catch (err: any) {
       console.error('Wallet connect error:', err);
+      if (err.code === 4001) {
+        alert('Connection rejected. Please approve the request in MetaMask.');
+      } else if (err.code === 4902) {
+        alert('Failed to add Somnia Testnet to MetaMask. Please add it manually.');
+      } else {
+        alert(`Connection failed: ${err.message}`);
+      }
     }
   };
 
