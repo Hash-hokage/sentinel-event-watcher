@@ -289,6 +289,30 @@ function App() {
   const fundSession = async () => {
     if (!window.ethereum || !sessionClient || !account) return;
     try {
+      const chainId = await window.ethereum.request({ method: 'eth_chainId' });
+      if (parseInt(chainId, 16) !== 50312) {
+        try {
+          await window.ethereum.request({
+            method: 'wallet_switchEthereumChain',
+            params: [{ chainId: '0xC478' }],
+          });
+        } catch (switchError: any) {
+          if (switchError.code === 4902) {
+            await window.ethereum.request({
+              method: 'wallet_addEthereumChain',
+              params: [{
+                chainId: '0xC478',
+                chainName: 'Somnia Testnet',
+                nativeCurrency: { name: 'STT', symbol: 'STT', decimals: 18 },
+                rpcUrls: ['https://api.infra.testnet.somnia.network'],
+                blockExplorerUrls: ['https://shannon-explorer.somnia.network'],
+              }],
+            });
+          } else {
+            throw switchError;
+          }
+        }
+      }
       const walletClient = createWalletClient({
         chain: somniaTestnet,
         transport: custom(window.ethereum),
